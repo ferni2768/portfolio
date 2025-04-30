@@ -10,7 +10,7 @@
 </template>
 
 <script>
-import { onMounted, ref, onBeforeUnmount } from 'vue'
+import { onMounted, ref, onBeforeUnmount, watch } from 'vue'
 import * as THREE from 'three'
 
 export default {
@@ -19,14 +19,26 @@ export default {
     title: {
       type: String,
       default: ''
+    },
+    scrollY: {
+      type: Number,
+      default: 0
     }
   },
-  setup() {
+  setup(props) {
     const canvas = ref(null)
     let scene, camera, renderer, cube, animationId
     let mouseOffsetX = 0, mouseOffsetY = 0
     const offsetFactor = 0.075
     let resizeObserver = null
+
+    // Smooth scroll animation variables
+    let targetScrollRotationX = 0
+    let targetScrollRotationY = 0
+    let currentScrollRotationX = 0
+    let currentScrollRotationY = 0
+    const scrollEaseFactor = 0.05
+    let cardRect = null
 
     const initThree = () => {
       scene = new THREE.Scene()
@@ -58,13 +70,22 @@ export default {
     const animate = () => {
       animationId = requestAnimationFrame(animate)
 
-      // Compute an effective target based on the camera's position plus a slight offset based on the mouse
+      // Apply smooth easing for scroll-based rotation
+      currentScrollRotationX += (targetScrollRotationX - currentScrollRotationX) * scrollEaseFactor
+      currentScrollRotationY += (targetScrollRotationY - currentScrollRotationY) * scrollEaseFactor
+
+      // Compute an effective target based on the camera's position plus offsets from mouse and scroll
       const effectiveTarget = camera.position.clone().add(
-        new THREE.Vector3(mouseOffsetX * offsetFactor, -mouseOffsetY * offsetFactor, 0)
+        new THREE.Vector3(
+          mouseOffsetX * offsetFactor + currentScrollRotationY,
+          -mouseOffsetY * offsetFactor + currentScrollRotationX,
+          0
+        )
       )
 
       const targetMatrix = new THREE.Matrix4().lookAt(effectiveTarget, cube.position, cube.up)
       const targetQuaternion = new THREE.Quaternion().setFromRotationMatrix(targetMatrix)
+
       // Smoothly interpolate from the cube's current rotation to the target rotation
       cube.quaternion.slerp(targetQuaternion, 0.05)
 
@@ -79,10 +100,36 @@ export default {
         camera.updateProjectionMatrix()
         renderer.setSize(width, height, false)
       }
+      updateCardRect()
+    }
+
+    const updateCardRect = () => {
+      if (canvas.value && canvas.value.parentNode) {
+        cardRect = canvas.value.parentNode.getBoundingClientRect()
+        calculateScrollRotation(props.scrollY)
+      }
+    }
+
+    const calculateScrollRotation = (scrollY) => {
+      if (!cardRect) return
+
+      // Calculate card's position relative to viewport center
+      const viewportCenter = window.innerHeight / 2
+      const cardCenter = cardRect.top + cardRect.height / 2
+      const distanceFromCenter = (cardCenter - viewportCenter) / viewportCenter
+
+      // Update target rotation based on scroll position and card position
+      targetScrollRotationX = distanceFromCenter * 0.5
+
+      // Add oscillation effect based on scroll position
+      const oscillation = Math.sin(scrollY * 0.002) * 0.2
+      targetScrollRotationY = oscillation
     }
 
     // Global mouse move listener that calculates the offset relative to this card's container
     const onGlobalMouseMove = (event) => {
+      if (!canvas.value || !canvas.value.parentNode) return
+
       const rect = canvas.value.parentNode.getBoundingClientRect()
       const centerX = rect.left + rect.width / 2
       const centerY = rect.top + rect.height / 2
@@ -91,10 +138,16 @@ export default {
       mouseOffsetY = (event.clientY - centerY) / (rect.height / 2)
     }
 
+    // Watch for scroll position changes to update card rotation
+    watch(() => props.scrollY, (newScrollY) => {
+      calculateScrollRotation(newScrollY)
+    })
+
     onMounted(() => {
       setTimeout(() => {
         initThree()
         animate()
+        updateCardRect()
 
         // Only set up the ResizeObserver after Three.js is initialized
         resizeObserver = new ResizeObserver(() => {
@@ -108,12 +161,14 @@ export default {
 
       window.addEventListener('resize', onWindowResize)
       window.addEventListener('mousemove', onGlobalMouseMove)
+      window.addEventListener('scroll', updateCardRect)
     })
 
     onBeforeUnmount(() => {
       cancelAnimationFrame(animationId)
       window.removeEventListener('resize', onWindowResize)
       window.removeEventListener('mousemove', onGlobalMouseMove)
+      window.removeEventListener('scroll', updateCardRect)
 
       if (resizeObserver) {
         resizeObserver.disconnect()
