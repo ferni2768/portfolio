@@ -5,14 +5,7 @@
       <section ref="projectsSection"
         class="fixed min-h-screen w-full z-20 bg-white flex justify-center will-change-transform"
         :style="{ transform: `translateY(${projectsTranslate}px)` }">
-        <div class="container mx-auto px-4 py-10">
-          <h1 class="text-4xl font-bold text-center mb-10">Portfolio</h1>
-          <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <ThreeDCard title="Project 1" />
-            <ThreeDCard title="Project 2" />
-            <ThreeDCard ref="thirdCard" title="Portfolio" />
-          </div>
-        </div>
+        <ProjectsSection ref="projectsContent" />
       </section>
     </div>
 
@@ -44,21 +37,21 @@
 
 <script>
 import { ref, onMounted, onBeforeUnmount, computed } from 'vue'
-import ThreeDCard from './components/ThreeDCard.vue'
 import AboutSection from './components/AboutSection.vue'
+import ProjectsSection from './components/ProjectsSection.vue'
 
 export default {
   name: 'App',
   components: {
-    ThreeDCard,
     AboutSection,
+    ProjectsSection,
   },
   setup() {
     const projectsSection = ref(null)
     const aboutSection = ref(null)
     const windowWidth = ref(window.innerWidth)
     const windowHeight = ref(window.innerHeight)
-    const thirdCard = ref(null)
+    const projectsContent = ref(null)
     const isTouchDevice = ref(false)
 
     // Calculate initial positions
@@ -102,8 +95,8 @@ export default {
       const multiplier = isSingleRow ? 1 : 3
 
       // 1) Compute stripeStart
-      const cardEl = thirdCard.value?.$el
-      const cardHeight = cardEl?.getBoundingClientRect().height || 0
+      const thirdCard = projectsContent.value?.thirdCard?.$el
+      const cardHeight = thirdCard?.getBoundingClientRect().height || 0
       const STRIPE_OFFSET = (100 * multiplier) + 200
       const DIST = (cardHeight * multiplier) + STRIPE_OFFSET
       const stripeStart = Math.max(windowHeight.value, DIST)
@@ -128,12 +121,12 @@ export default {
       currentScrollY.value = scrolled
 
       // Calculate stripe parameters
-      const cardEl = thirdCard.value?.$el
-      const cardRect = cardEl?.getBoundingClientRect() || { height: 0 }
+      const thirdCard = projectsContent.value?.thirdCard?.$el
+      const cardRect = thirdCard?.getBoundingClientRect() || { height: 0 }
       const windowHeight = window.innerHeight
       const isSingleRow = window.innerWidth >= 768
       const multiplier = isSingleRow ? 1 : 3
-      const STRIPE_OFFSET = (100 * multiplier) + 200
+      const STRIPE_OFFSET = (80 * multiplier) + 150
       const DIST = (cardRect.height * multiplier) + STRIPE_OFFSET
       const stripeStart = Math.max(windowHeight, DIST)
       const transitionPoint = stripeStart - windowHeight
@@ -244,9 +237,9 @@ export default {
       projectsTranslate,
       aboutTranslate,
       projectsSection,
+      projectsContent,
       aboutSection,
       stripesPosition,
-      thirdCard,
       totalScrollHeight,
       smoothedScrollY,
       windowWidth
