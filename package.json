@@ -9,6 +9,8 @@
   },
   "dependencies": {
     "core-js": "^3.8.3",
+    "overlayscrollbars": "^2.11.2",
+    "overlayscrollbars-vue": "^0.5.9",
     "three": "^0.176.0",
     "vue": "^3.2.13"
   },
