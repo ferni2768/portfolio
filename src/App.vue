@@ -53,25 +53,30 @@ export default {
     const windowHeight = ref(window.innerHeight)
     const projectsContent = ref(null)
     const isTouchDevice = ref(false)
+    const multiplier = computed(() => windowWidth.value >= 768 ? 1 : 3)
+
+    // Calculate the stripe offset
+    const STRIPE_OFFSET = computed(() => (110 * multiplier.value) + 250)
 
     // Calculate initial positions
-    const isSingleRow = windowWidth.value >= 768
-    const multiplier = isSingleRow ? 1 : 3
-    const STRIPE_OFFSET = (100 * multiplier) + 200
-    const DIST = STRIPE_OFFSET
-    const stripeStart = Math.max(windowHeight.value, DIST)
+    const stripeStart = computed(() => {
+      const thirdCard = projectsContent.value?.thirdCard?.$el
+      const cardHeight = thirdCard?.getBoundingClientRect().height || 0
+      const DIST = (cardHeight * multiplier.value) + STRIPE_OFFSET.value
+      return Math.max(windowHeight.value, DIST)
+    })
 
     // Initialize with starting positions
     const projectsTranslate = ref(0)
-    const aboutTranslate = ref(stripeStart)
-    const stripesPosition = ref(new Array(9).fill(stripeStart))
+    const aboutTranslate = ref(stripeStart.value)
+    const stripesPosition = ref(new Array(9).fill(stripeStart.value))
     const currentScrollY = ref(0)
     const smoothedScrollY = ref(0)
 
     // Target values for smooth animations
     const targetProjectsTranslate = ref(0)
-    const targetAboutTranslate = ref(stripeStart)
-    const targetStripesPosition = ref(new Array(9).fill(stripeStart))
+    const targetAboutTranslate = ref(stripeStart.value)
+    const targetStripesPosition = ref(new Array(9).fill(stripeStart.value))
 
     // Track section heights
     const projectsSectionHeight = ref(0)
@@ -91,14 +96,10 @@ export default {
 
     // Compute the total scroll height needed
     const totalScrollHeight = computed(() => {
-      const isSingleRow = windowWidth.value >= 768
-      const multiplier = isSingleRow ? 1 : 3
-
       // 1) Compute stripeStart
       const thirdCard = projectsContent.value?.thirdCard?.$el
       const cardHeight = thirdCard?.getBoundingClientRect().height || 0
-      const STRIPE_OFFSET = (100 * multiplier) + 200
-      const DIST = (cardHeight * multiplier) + STRIPE_OFFSET
+      const DIST = (cardHeight * multiplier.value) + STRIPE_OFFSET.value
       const stripeStart = Math.max(windowHeight.value, DIST)
 
       // 2) Compute the height of the About section
@@ -124,10 +125,7 @@ export default {
       const thirdCard = projectsContent.value?.thirdCard?.$el
       const cardRect = thirdCard?.getBoundingClientRect() || { height: 0 }
       const windowHeight = window.innerHeight
-      const isSingleRow = window.innerWidth >= 768
-      const multiplier = isSingleRow ? 1 : 3
-      const STRIPE_OFFSET = (80 * multiplier) + 150
-      const DIST = (cardRect.height * multiplier) + STRIPE_OFFSET
+      const DIST = (cardRect.height * multiplier.value) + STRIPE_OFFSET.value
       const stripeStart = Math.max(windowHeight, DIST)
       const transitionPoint = stripeStart - windowHeight
 
