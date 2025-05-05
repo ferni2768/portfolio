@@ -59,6 +59,7 @@ export default {
     const windowWidth = ref(window.innerWidth)
     const windowHeight = ref(window.innerHeight)
     const thirdCard = ref(null)
+    const isTouchDevice = ref(false)
 
     // Calculate initial positions
     const isSingleRow = windowWidth.value >= 768
@@ -87,6 +88,13 @@ export default {
     const easeOutFactor = 0.05
     const stripeSpeedFactors = [2.1, 1.8, 2.3, 1.9, 1.6, 2.25, 2.1, 1.7, 2.2]
     const mobileStripeSpeedFactors = [2.1, 1.8, 2.3, 1.9, 1.6]
+
+    // Detect touch device
+    const detectTouchDevice = () => {
+      isTouchDevice.value = 'ontouchstart' in window ||
+        navigator.maxTouchPoints > 0 ||
+        navigator.msMaxTouchPoints > 0;
+    }
 
     // Compute the total scroll height needed
     const totalScrollHeight = computed(() => {
@@ -165,19 +173,32 @@ export default {
           targetStripesPosition.value[i] = windowHeight - (scrollBeyondThreshold * speedFactor)
         }
       }
+
+      // For touch devices, immediately apply the target values without animation
+      if (isTouchDevice.value) {
+        projectsTranslate.value = targetProjectsTranslate.value
+        aboutTranslate.value = targetAboutTranslate.value
+
+        const stripeCount = windowWidth.value >= 768 ? 9 : 5
+        for (let i = 0; i < stripeCount; i++) {
+          stripesPosition.value[i] = targetStripesPosition.value[i]
+        }
+      }
     }
 
-    // Smooth scrolling animation
+    // Smooth scrolling animation (only for non-touch devices)
     const animateScroll = () => {
-      smoothedScrollY.value += (currentScrollY.value - smoothedScrollY.value) * easeOutFactor
+      if (!isTouchDevice.value) {
+        smoothedScrollY.value += (currentScrollY.value - smoothedScrollY.value) * easeOutFactor
 
-      projectsTranslate.value += (targetProjectsTranslate.value - projectsTranslate.value) * easeOutFactor
-      aboutTranslate.value += (targetAboutTranslate.value - aboutTranslate.value) * easeOutFactor
+        projectsTranslate.value += (targetProjectsTranslate.value - projectsTranslate.value) * easeOutFactor
+        aboutTranslate.value += (targetAboutTranslate.value - aboutTranslate.value) * easeOutFactor
 
-      const stripeCount = windowWidth.value >= 768 ? 9 : 5
-      for (let i = 0; i < stripeCount; i++) {
-        stripesPosition.value[i] +=
-          (targetStripesPosition.value[i] - stripesPosition.value[i]) * easeOutFactor
+        const stripeCount = windowWidth.value >= 768 ? 9 : 5
+        for (let i = 0; i < stripeCount; i++) {
+          stripesPosition.value[i] +=
+            (targetStripesPosition.value[i] - stripesPosition.value[i]) * easeOutFactor
+        }
       }
 
       animationFrameId = requestAnimationFrame(animateScroll)
@@ -202,6 +223,7 @@ export default {
     }
 
     onMounted(() => {
+      detectTouchDevice()
       window.addEventListener('scroll', handleScroll)
       window.addEventListener('resize', onResize)
       window.addEventListener('orientationchange', onResize)
