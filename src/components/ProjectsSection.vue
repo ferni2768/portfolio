@@ -40,8 +40,8 @@
 
         <!-- Projects Grid -->
         <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <ThreeDCard title="Project 1" image="eurovisor_logo" />
-            <ThreeDCard title="Project 2" image="eurovisor_logo" />
+            <ThreeDCard title="QuickEscape" image="quickescape_logo" />
+            <ThreeDCard title="Eurovisor" image="eurovisor_logo" />
             <ThreeDCard ref="thirdCard" title="Portfolio" image="eurovisor_logo" />
         </div>
     </div>

@@ -1,9 +1,12 @@
 <template>
-  <div class="w-full h-64 relative">
-    <div class="w-full h-full p-4">
-      <canvas ref="canvas" class="w-full h-full"></canvas>
+  <div :style="{ opacity: loaded ? 1 : 0, transition: 'opacity 0.3s ease-in' }"
+    class="w-full flex flex-col items-center">
+    <div class="w-full h-64 relative">
+      <div class="w-full h-full">
+        <canvas ref="canvas" class="w-full h-full"></canvas>
+      </div>
     </div>
-    <div class="absolute bottom-2 left-2 text-white bg-black bg-opacity-50 px-2 py-1 rounded">
+    <div class="text-center text-2xl text-black font-normal">
       {{ title }}
     </div>
   </div>
@@ -35,13 +38,15 @@ export default {
   },
   setup(props) {
     const canvas = ref(null)
+    const loaded = ref(false)
     let scene, camera, renderer, cube, animationId
     let mouseOffsetX = 0, mouseOffsetY = 0
+    let lastMouseX = null, lastMouseY = null
     const offsetFactor = 0.35
     let resizeObserver = null
 
     // Constants to control the intensities of the lights
-    const AMBIENT_LIGHT_INTENSITY = 2
+    const AMBIENT_LIGHT_INTENSITY = 0.5
     const DIRECTIONAL_LIGHT_INTENSITY = 1
     const POINT_LIGHT_INTENSITY = 1
 
@@ -62,6 +67,9 @@ export default {
       renderer = new THREE.WebGLRenderer({ canvas: canvas.value, alpha: true, antialias: true })
       renderer.setPixelRatio(Math.min(window.devicePixelRatio, props.maxResolution))
       renderer.setSize(width, height, false)
+      renderer.outputEncoding = THREE.sRGBEncoding
+      renderer.toneMapping = THREE.ACESFilmicToneMapping
+      renderer.toneMappingExposure = 4
 
       renderer.shadowMap.enabled = true
       renderer.shadowMap.type = THREE.PCFSoftShadowMap
@@ -72,18 +80,19 @@ export default {
       // Load texture
       const textureLoader = new THREE.TextureLoader()
       textureLoader.load(resolvedImage, (texture) => {
+        texture.encoding = THREE.sRGBEncoding
         texture.wrapS = THREE.RepeatWrapping
         texture.wrapT = THREE.RepeatWrapping
         texture.repeat.set(0.31, 0.31)
 
         // Use MeshStandardMaterial to respond to lighting
         const materials = [
-          new THREE.MeshStandardMaterial({ map: texture, roughness: 0.7, metalness: 0.2 }), // Front face
-          new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.7, metalness: 0.2 }), // Back face
-          new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.7, metalness: 0.2 }), // Top face
-          new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.7, metalness: 0.2 }), // Bottom face
-          new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.7, metalness: 0.2 }), // Right face
-          new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.7, metalness: 0.2 })  // Left face
+          new THREE.MeshStandardMaterial({ map: texture, roughness: 0.7, metalness: 0 }), // Front face
+          new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.7, metalness: 0 }),
+          new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.7, metalness: 0 }),
+          new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.7, metalness: 0 }),
+          new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.7, metalness: 0 }),
+          new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.7, metalness: 0 })
         ]
         cube = new THREE.Mesh(geometry, materials)
         cube.castShadow = true
@@ -122,6 +131,7 @@ export default {
         pointLight.shadow.mapSize.height = 1024
 
         scene.add(pointLight)
+        loaded.value = true
         animate()
       })
     }
@@ -188,6 +198,8 @@ export default {
 
     // Calculate the rotation based on mouse position remains unchanged
     const onGlobalMouseMove = (event) => {
+      lastMouseX = event.clientX
+      lastMouseY = event.clientY
       if (!canvas.value || !canvas.value.parentNode) return
 
       const rect = canvas.value.parentNode.getBoundingClientRect()
@@ -196,6 +208,13 @@ export default {
       // Calculate normalized offset: range [-1, 1] relative to container center
       mouseOffsetX = (event.clientX - centerX) / (rect.width / 2)
       mouseOffsetY = (event.clientY - centerY) / (rect.height / 2)
+    }
+
+    const onWindowScroll = () => {
+      // On scroll, update mouse offset using stored coordinates if available
+      if (lastMouseX !== null && lastMouseY !== null) {
+        onGlobalMouseMove({ clientX: lastMouseX, clientY: lastMouseY })
+      }
     }
 
     onMounted(() => {
@@ -214,12 +233,14 @@ export default {
 
       window.addEventListener('resize', onWindowResize)
       window.addEventListener('mousemove', onGlobalMouseMove)
+      window.addEventListener('scroll', onWindowScroll)
     })
 
     onBeforeUnmount(() => {
       cancelAnimationFrame(animationId)
       window.removeEventListener('resize', onWindowResize)
       window.removeEventListener('mousemove', onGlobalMouseMove)
+      window.removeEventListener('scroll', onWindowScroll)
 
       if (resizeObserver) {
         resizeObserver.disconnect()
@@ -231,7 +252,8 @@ export default {
     })
 
     return {
-      canvas
+      canvas,
+      loaded
     }
   }
 }
