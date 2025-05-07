@@ -1,16 +1,19 @@
 <template>
   <div class="relative overflow-hidden">
+    <!-- 3D background waves -->
+    <ThreeDBackgroundWaves :translateY="projectsTranslate" />
+
     <!-- Projects Section -->
-    <div class="min-h-screen relative top-0 w-full h-screen z-20 flex justify-center">
-      <section ref="projectsSection"
-        class="fixed min-h-screen w-full z-20 bg-white flex justify-center will-change-transform"
+    <div class="min-h-screen relative top-0 w-full h-screen flex justify-center">
+      <div class="absolute top-0 left-0 w-full h-screen bg-white z-10"></div>
+      <section ref="projectsSection" class="fixed min-h-screen w-full z-30 flex justify-center will-change-transform"
         :style="{ transform: `translateY(${projectsTranslate}px)` }">
         <ProjectsSection ref="projectsContent" />
       </section>
     </div>
 
     <!-- Transition Stripes -->
-    <div class="vertical-stripes-container fixed top-0 left-0 w-full h-screen pointer-events-none z-30">
+    <div class="vertical-stripes-container fixed top-0 left-0 w-full h-screen pointer-events-none z-40">
       <div v-for="i in (windowWidth >= 768 ? 9 : 5)" :key="i"
         class="vertical-stripe transition-none will-change-transform bg-black absolute" :style="{
           left: `${(i - 1) * (100 / (windowWidth >= 768 ? 9 : 5))}%`,
@@ -23,7 +26,7 @@
     </div>
 
     <!-- About Me Section -->
-    <section ref="aboutSection" class="z-40 fixed w-full min-h-[75vh] will-change-transform pb-10 px-10" :style="{
+    <section ref="aboutSection" class="z-50 fixed w-full min-h-[75vh] will-change-transform pb-10 px-10" :style="{
       top: '0',
       transform: `translateY(${aboutTranslate}px)`
     }">
@@ -39,12 +42,14 @@
 import { ref, onMounted, onBeforeUnmount, computed } from 'vue'
 import AboutSection from './components/AboutSection.vue'
 import ProjectsSection from './components/ProjectsSection.vue'
+import ThreeDBackgroundWaves from './components/ThreeDBackgroundWaves.vue'
 
 export default {
   name: 'App',
   components: {
     AboutSection,
     ProjectsSection,
+    ThreeDBackgroundWaves
   },
   setup() {
     const projectsSection = ref(null)

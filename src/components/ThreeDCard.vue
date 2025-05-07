@@ -15,6 +15,11 @@
 <script>
 import { onMounted, ref, onBeforeUnmount } from 'vue'
 import * as THREE from 'three'
+import { RoundedBoxGeometry } from 'three/examples/jsm/geometries/RoundedBoxGeometry.js'
+import TOON_TONE from '@/assets/images/textures/threeTone.jpg'
+
+const MAX_RESOLUTION = 3
+const MAX_ROTATION = 0.7
 
 export default {
   name: 'ThreeDCard',
@@ -23,17 +28,18 @@ export default {
       type: String,
       default: ''
     },
-    maxResolution: {
-      type: Number,
-      default: 3
-    },
-    maxRotation: {
-      type: Number,
-      default: 0.7
-    },
     image: {
       type: String,
       default: 'eurovisor_logo'
+    },
+    textureScale: {
+      type: Number,
+      default: 1.25,
+      validator: value => value > 0 && value <= 1
+    },
+    materialColor: {
+      type: [Number, String],
+      default: 0xffffff
     }
   },
   setup(props) {
@@ -46,16 +52,15 @@ export default {
     let resizeObserver = null
 
     // Constants to control the intensities of the lights
-    const AMBIENT_LIGHT_INTENSITY = 0.5
-    const DIRECTIONAL_LIGHT_INTENSITY = 1
-    const POINT_LIGHT_INTENSITY = 1
+    const AMBIENT_LIGHT_INTENSITY = 2
+    const DIRECTIONAL_LIGHT_INTENSITY = 10
 
     // Get the image texture path
     const resolvedImage = (!props.image.includes('/') && !props.image.endsWith('.jpg'))
       ? require(`@/assets/images/${props.image}.jpg`)
       : props.image
 
-    const initThree = () => {
+    const initThree = async () => {
       scene = new THREE.Scene()
 
       const width = canvas.value.clientWidth
@@ -65,39 +70,66 @@ export default {
       camera.position.z = 5
 
       renderer = new THREE.WebGLRenderer({ canvas: canvas.value, alpha: true, antialias: true })
-      renderer.setPixelRatio(Math.min(window.devicePixelRatio, props.maxResolution))
+      renderer.setPixelRatio(Math.min(window.devicePixelRatio, MAX_RESOLUTION))
       renderer.setSize(width, height, false)
       renderer.outputEncoding = THREE.sRGBEncoding
       renderer.toneMapping = THREE.ACESFilmicToneMapping
-      renderer.toneMappingExposure = 4
+      renderer.toneMappingExposure = 0.5
 
       renderer.shadowMap.enabled = true
       renderer.shadowMap.type = THREE.PCFSoftShadowMap
 
       // Create the rounded box geometry
-      const geometry = createRoundedBoxGeometry(5, 5, 1.8, 0.9, 10)
+      const geometry = new RoundedBoxGeometry(5, 5, 1.8, 5, 5)
 
-      // Load texture
       const textureLoader = new THREE.TextureLoader()
+      const toonTexture = await new THREE.TextureLoader().loadAsync(TOON_TONE)
+      toonTexture.minFilter = toonTexture.magFilter = THREE.NearestFilter
+
+      // Load the textures
       textureLoader.load(resolvedImage, (texture) => {
-        texture.encoding = THREE.sRGBEncoding
-        texture.wrapS = THREE.RepeatWrapping
-        texture.wrapT = THREE.RepeatWrapping
-        texture.repeat.set(0.31, 0.31)
+        texture.wrapS = texture.wrapT = THREE.ClampToEdgeWrapping
 
-        // Use MeshStandardMaterial to respond to lighting
+        // Create a front face material with centered and scaled texture
+        const frontMaterial = new THREE.MeshToonMaterial({
+          color: props.materialColor,
+          gradientMap: toonTexture
+        })
+
+        frontMaterial.map = texture
+        const scale = props.textureScale
+        const offsetX = (1 - scale) / 2
+        const offsetY = (1 - scale) / 2
+
+        // Apply scaling and offset
+        texture.repeat.set(scale, scale)
+        texture.offset.set(offsetX, offsetY)
+
         const materials = [
-          new THREE.MeshStandardMaterial({ map: texture, roughness: 0.7, metalness: 0 }), // Front face
-          new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.7, metalness: 0 }),
-          new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.7, metalness: 0 }),
-          new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.7, metalness: 0 }),
-          new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.7, metalness: 0 }),
-          new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.7, metalness: 0 })
+          new THREE.MeshToonMaterial({
+            color: props.materialColor,
+            gradientMap: toonTexture
+          }),
+          new THREE.MeshToonMaterial({
+            color: props.materialColor,
+            gradientMap: toonTexture
+          }),
+          new THREE.MeshToonMaterial({
+            color: props.materialColor,
+            gradientMap: toonTexture
+          }),
+          new THREE.MeshToonMaterial({
+            color: props.materialColor,
+            gradientMap: toonTexture
+          }),
+          frontMaterial, // Front face with texture
+          new THREE.MeshToonMaterial({
+            color: props.materialColor,
+            gradientMap: toonTexture
+          })
         ]
-        cube = new THREE.Mesh(geometry, materials)
-        cube.castShadow = true
-        cube.receiveShadow = true
 
+        cube = new THREE.Mesh(geometry, materials)
         scene.add(cube)
 
         // Ambient light
@@ -106,10 +138,12 @@ export default {
 
         // Directional light
         const directionalLight = new THREE.DirectionalLight(0xffffff, DIRECTIONAL_LIGHT_INTENSITY)
-        directionalLight.position.set(5, 5, 5)
-        directionalLight.castShadow = true
+        directionalLight.position.set(3, 2, 0.5)
+        directionalLight.target = cube
+        scene.add(directionalLight.target)
 
         // Configure shadow properties
+        directionalLight.castShadow = true
         directionalLight.shadow.mapSize.width = 1024
         directionalLight.shadow.mapSize.height = 1024
         directionalLight.shadow.camera.near = 0.5
@@ -121,41 +155,9 @@ export default {
 
         scene.add(directionalLight)
 
-        // Point light - emits light in all directions from a point
-        const pointLight = new THREE.PointLight(0xffaa00, POINT_LIGHT_INTENSITY, 20)
-        pointLight.position.set(-5, 3, -5)
-        pointLight.castShadow = true
-
-        // Configure shadow properties
-        pointLight.shadow.mapSize.width = 1024
-        pointLight.shadow.mapSize.height = 1024
-
-        scene.add(pointLight)
         loaded.value = true
         animate()
       })
-    }
-
-    // Function to create rounded box geometry
-    function createRoundedBoxGeometry(width, height, depth, radius, smoothness) {
-      const shape = new THREE.Shape()
-      const eps = 0.00001
-      const radius0 = radius - eps
-      shape.absarc(eps, eps, eps, -Math.PI / 2, -Math.PI, true)
-      shape.absarc(eps, height - radius * 2, eps, Math.PI, Math.PI / 2, true)
-      shape.absarc(width - radius * 2, height - radius * 2, eps, Math.PI / 2, 0, true)
-      shape.absarc(width - radius * 2, eps, eps, 0, -Math.PI / 2, true)
-      const geometry = new THREE.ExtrudeGeometry(shape, {
-        depth: depth - radius * 2,
-        bevelEnabled: true,
-        bevelSegments: smoothness * 2,
-        steps: 1,
-        bevelSize: radius0,
-        bevelThickness: radius,
-        curveSegments: smoothness
-      })
-      geometry.center()
-      return geometry
     }
 
     const animate = () => {
@@ -169,7 +171,7 @@ export default {
         // Measure the tilt-offset magnitude
         const rotationMag = Math.sqrt(offsetX * offsetX + offsetY * offsetY)
 
-        if (rotationMag > props.maxRotation) {
+        if (rotationMag > MAX_ROTATION) {
           const identityQuat = new THREE.Quaternion()
           cube.quaternion.slerp(identityQuat, 0.05)
         } else {
@@ -191,7 +193,7 @@ export default {
         const height = canvas.value.clientHeight
         camera.aspect = width / height
         camera.updateProjectionMatrix()
-        renderer.setPixelRatio(Math.min(window.devicePixelRatio, props.maxResolution))
+        renderer.setPixelRatio(Math.min(window.devicePixelRatio, MAX_RESOLUTION))
         renderer.setSize(width, height, false)
       }
     }
