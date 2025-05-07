@@ -1,5 +1,5 @@
 <template>
-  <div class="container mx-auto py-10 space-y-10">
+  <div class="container mx-auto pt-10 pb-28 space-y-10">
     <div class="flex flex-col md:flex-row items-center">
       <div class="md:w-1/2 p-4">
         <h2 class="text-2xl font-bold text-white mb-4">About Me</h2>

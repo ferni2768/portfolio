@@ -1,11 +1,13 @@
 <template>
-    <canvas ref="canvas" class="fixed block opacity-50 top-0 left-0 w-full h-screen pointer-events-none z-20"
-        :style="{ transform: `rotate(180deg) translateY(calc(${(-translateY / 1.3) + 100}px))` }">
+    <canvas ref="canvas" class="fixed block top-0 left-0 w-full h-screen pointer-events-none z-20" :style="{
+        transform: `rotate(180deg) translateY(calc(${(-translateY / 1.3)}px + 35% - (${(titleHeight)}px + 40px)))`,
+        opacity: dynamicOpacity
+    }">
     </canvas>
 </template>
 
 <script>
-import { ref, onMounted, onBeforeUnmount } from 'vue'
+import { ref, onMounted, onBeforeUnmount, computed } from 'vue'
 import * as THREE from 'three'
 import { createNoise4D } from 'simplex-noise'
 import TOON_TONE from '@/assets/images/textures/threeTone.jpg'
@@ -16,9 +18,13 @@ export default {
         translateY: {
             type: Number,
             default: 0
-        }
+        },
+        titleHeight: {
+            type: Number,
+            default: 0
+        },
     },
-    setup() {
+    setup(props) {
         const canvas = ref(null)
         const sceneObjects = {
             renderer: null,
@@ -29,35 +35,60 @@ export default {
         let animationFrameId = null
         const noise4D = createNoise4D()
 
+        const dynamicOpacity = computed(() => {
+            return Math.max(0, 0.5 - (-props.translateY / 600))
+        })
+
         // Constants for wave generation
-        const WIDTH_SEGMENTS = 100        // number of segments horizontally
-        const HEIGHT_SEGMENTS = 100       // number of segments vertically
-        const NOISE_SCALE = 70            // lower = more coarse waves
-        const HEIGHT_SCALE = 10           // amplitude of waves
-        const LIGHT_COLORS = [            // point‑light colors
+        const WIDTH_SEGMENTS = 10
+        const HEIGHT_SEGMENTS = 10
+        const NOISE_SCALE = 10
+        const HEIGHT_SCALE = 12
+        const LIGHT_COLORS = [
             0xffffff,
             0x000000,
             0xffffff,
             0x000000
         ]
 
+        // Maximum resolution constraints
+        const MAX_WIDTH = 3840
+        const MAX_HEIGHT = 2160
+
         // Setup renderer and camera
         const setupRenderingSystem = () => {
-            // Renderer
             sceneObjects.renderer = new THREE.WebGLRenderer({
                 canvas: canvas.value,
                 antialias: true,
                 alpha: true
             })
-            sceneObjects.renderer.setPixelRatio(window.devicePixelRatio)
-            sceneObjects.renderer.setSize(window.innerWidth, window.innerHeight)
+            sceneObjects.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2))
+            const { width, height } = getConstrainedSize(window.innerWidth, window.innerHeight)
+            sceneObjects.renderer.setSize(width, height, false)
 
             // Camera
             sceneObjects.camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000)
             sceneObjects.camera.position.set(0, 30, 60)
 
-            // Scene
             sceneObjects.scene = new THREE.Scene()
+        }
+
+        // Helper function to constrain dimensions while keeping aspect ratio
+        const getConstrainedSize = (width, height) => {
+            let finalWidth = width
+            let finalHeight = height
+
+            if (width > MAX_WIDTH) {
+                finalWidth = MAX_WIDTH
+                finalHeight = (height * MAX_WIDTH) / width
+            }
+
+            if (finalHeight > MAX_HEIGHT) {
+                finalHeight = MAX_HEIGHT
+                finalWidth = (finalWidth * MAX_HEIGHT) / finalHeight
+            }
+
+            return { width: Math.floor(finalWidth), height: Math.floor(finalHeight) }
         }
 
         // Create lighting system
@@ -126,7 +157,10 @@ export default {
             const aspectRatio = window.innerWidth / window.innerHeight;
             sceneObjects.camera.aspect = aspectRatio;
             sceneObjects.camera.updateProjectionMatrix();
-            sceneObjects.renderer.setSize(window.innerWidth, window.innerHeight);
+
+            // Apply constrained size for better performance
+            const { width, height } = getConstrainedSize(window.innerWidth, window.innerHeight)
+            sceneObjects.renderer.setSize(width, height, false);
         }
 
         // Unified scene updater
@@ -206,7 +240,7 @@ export default {
             }
         })
 
-        return { canvas }
+        return { canvas, dynamicOpacity }
     }
 }
 </script>

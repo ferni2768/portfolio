@@ -19,7 +19,7 @@ import { RoundedBoxGeometry } from 'three/examples/jsm/geometries/RoundedBoxGeom
 import TOON_TONE from '@/assets/images/textures/threeTone.jpg'
 
 const MAX_RESOLUTION = 3
-const MAX_ROTATION = 0.7
+const MAX_ROTATION = 0.6
 
 export default {
   name: 'ThreeDCard',
@@ -48,8 +48,8 @@ export default {
     let scene, camera, renderer, cube, animationId
     let mouseOffsetX = 0, mouseOffsetY = 0
     let lastMouseX = null, lastMouseY = null
-    const offsetFactor = 0.35
-    const positionOffsetFactor = 0.2
+    const offsetFactor = 0.3
+    const positionOffsetFactor = 0.175
     let resizeObserver = null
     let initialPosition = new THREE.Vector3(0, 0, 0)
 
@@ -82,7 +82,7 @@ export default {
       renderer.shadowMap.type = THREE.PCFSoftShadowMap
 
       // Create the rounded box geometry
-      const geometry = new RoundedBoxGeometry(5, 5, 1.8, 5, 5)
+      const geometry = new RoundedBoxGeometry(5, 5, 1.8, 2, 5)
 
       const textureLoader = new THREE.TextureLoader()
       const toonTexture = await new THREE.TextureLoader().loadAsync(TOON_TONE)

@@ -1,7 +1,7 @@
 <template>
     <div class="container mx-auto px-4 py-10">
         <!-- Header Section -->
-        <div class="mb-5 md:mb-16">
+        <div ref="headerSection" class="mb-5 md:mb-16">
             <h1 class="text-4xl font-bold text-center mb-3">Alejandro Fernández Vázquez</h1>
             <p class="text-xl text-center text-gray-600 mb-6">Software Developer | Focused on User-Centric App Design
             </p>
@@ -48,7 +48,7 @@
 </template>
 
 <script>
-import { ref } from 'vue'
+import { ref, onMounted, onBeforeUnmount } from 'vue'
 import ThreeDCard from './ThreeDCard.vue'
 
 export default {
@@ -58,9 +58,37 @@ export default {
     },
     setup() {
         const thirdCard = ref(null)
+        const headerSection = ref(null)
+        const headerHeight = ref(0)
+        let resizeObserver = null
+
+        const updateHeaderHeight = () => {
+            if (headerSection.value) {
+                headerHeight.value = headerSection.value.offsetHeight
+            }
+        }
+
+        onMounted(() => {
+            updateHeaderHeight()
+
+            resizeObserver = new ResizeObserver(updateHeaderHeight)
+            if (headerSection.value) {
+                resizeObserver.observe(headerSection.value)
+            }
+            window.addEventListener('resize', updateHeaderHeight)
+        })
+
+        onBeforeUnmount(() => {
+            if (resizeObserver) {
+                resizeObserver.disconnect()
+            }
+            window.removeEventListener('resize', updateHeaderHeight)
+        })
 
         return {
-            thirdCard
+            thirdCard,
+            headerSection,
+            headerHeight
         }
     }
 }
