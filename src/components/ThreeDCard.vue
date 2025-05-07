@@ -49,7 +49,9 @@ export default {
     let mouseOffsetX = 0, mouseOffsetY = 0
     let lastMouseX = null, lastMouseY = null
     const offsetFactor = 0.35
+    const positionOffsetFactor = 0.2
     let resizeObserver = null
+    let initialPosition = new THREE.Vector3(0, 0, 0)
 
     // Constants to control the intensities of the lights
     const AMBIENT_LIGHT_INTENSITY = 2
@@ -131,6 +133,7 @@ export default {
 
         cube = new THREE.Mesh(geometry, materials)
         scene.add(cube)
+        initialPosition.copy(cube.position)
 
         // Ambient light
         const ambientLight = new THREE.AmbientLight(0xffffff, AMBIENT_LIGHT_INTENSITY)
@@ -174,6 +177,9 @@ export default {
         if (rotationMag > MAX_ROTATION) {
           const identityQuat = new THREE.Quaternion()
           cube.quaternion.slerp(identityQuat, 0.05)
+
+          const targetPosition = initialPosition.clone()
+          cube.position.lerp(targetPosition, 0.05)
         } else {
           const effectiveTarget = camera.position.clone().add(
             new THREE.Vector3(offsetX, offsetY, 0)
@@ -181,6 +187,12 @@ export default {
           const targetMatrix = new THREE.Matrix4().lookAt(effectiveTarget, cube.position, cube.up)
           const targetQuaternion = new THREE.Quaternion().setFromRotationMatrix(targetMatrix)
           cube.quaternion.slerp(targetQuaternion, 0.05)
+
+          // Apply position offset based on mouse position
+          const translationX = mouseOffsetX * positionOffsetFactor
+          const translationY = -mouseOffsetY * positionOffsetFactor
+          const targetPosition = initialPosition.clone().add(new THREE.Vector3(translationX, translationY, 0))
+          cube.position.lerp(targetPosition, 0.05)
         }
 
         renderer.render(scene, camera)
