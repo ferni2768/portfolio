@@ -40,9 +40,11 @@
 
         <!-- Projects Grid -->
         <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <ThreeDCard title="QuickEscape" image="quickescape_logo" />
-            <ThreeDCard title="Eurovisor" image="eurovisor_logo" />
-            <ThreeDCard ref="thirdCard" title="Portfolio" image="eurovisor_logo" />
+            <ThreeDCard title="QuickEscape" image="quickescape_logo" tagline="Interactive Trip Timeline Organizer" />
+            <ThreeDCard title="Eurovisor" image="eurovisor_logo"
+                tagline="Explore Eurovision Song Contest performances" />
+            <ThreeDCard ref="thirdCard" title="Portfolio" image="eurovisor_logo"
+                tagline="It's this website! Scroll down to find out more" />
         </div>
     </div>
 </template>

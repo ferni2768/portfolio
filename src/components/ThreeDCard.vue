@@ -9,6 +9,9 @@
     <div class="text-center text-2xl text-black font-normal">
       {{ title }}
     </div>
+    <div class="text-center text-lg text-neutral-400 font-light mt-1">
+      {{ tagline }}
+    </div>
   </div>
 </template>
 
@@ -27,6 +30,10 @@ export default {
     title: {
       type: String,
       default: ''
+    },
+    tagline: {
+      type: String,
+      default: 'This is the tagline of the project'
     },
     image: {
       type: String,
@@ -74,7 +81,7 @@ export default {
       renderer = new THREE.WebGLRenderer({ canvas: canvas.value, alpha: true, antialias: true })
       renderer.setPixelRatio(Math.min(window.devicePixelRatio, MAX_RESOLUTION))
       renderer.setSize(width, height, false)
-      renderer.outputEncoding = THREE.sRGBEncoding
+      renderer.outputColorSpace = THREE.SRGBColorSpace
       renderer.toneMapping = THREE.ACESFilmicToneMapping
       renderer.toneMappingExposure = 0.5
 
