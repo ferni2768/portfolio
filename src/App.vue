@@ -196,7 +196,11 @@ export default {
           const speedFactor = windowWidth.value >= 768
             ? stripeSpeedFactors[i]
             : mobileStripeSpeedFactors[i]
-          targetStripesPosition.value[i] = windowHeight - (scrollBeyondThreshold * speedFactor)
+
+          const calculatedPosition = windowHeight - (scrollBeyondThreshold * speedFactor)
+          const maxUpwardLimit = windowHeight - (windowHeight * 1.5)
+          targetStripesPosition.value[i] = Math.max(calculatedPosition, maxUpwardLimit)
+
           arrowOpacity.value = 0
         }
       }

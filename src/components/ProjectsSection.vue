@@ -9,7 +9,7 @@
             <!-- Contact & Social Links -->
             <div class="flex justify-center space-x-6 mt-4">
                 <a href="mailto:a.fer.vazquez9@gmail.com"
-                    class="flex items-center text-gray-700 hover:text-blue-600 transition-colors">
+                    class="flex items-center text-gray-700 hover:text-indigo-600 transition-colors">
                     <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24"
                         stroke="currentColor">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
@@ -18,7 +18,7 @@
                     Email
                 </a>
                 <a href="https://github.com/ferni2768" target="_blank" rel="noopener noreferrer"
-                    class="flex items-center text-gray-700 hover:text-blue-600 transition-colors">
+                    class="flex items-center text-gray-700 hover:text-indigo-600 transition-colors">
                     <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" fill="currentColor"
                         viewBox="0 0 24 24">
                         <path
@@ -27,7 +27,7 @@
                     GitHub
                 </a>
                 <a href="https://www.linkedin.com/in/afernandez3/" target="_blank" rel="noopener noreferrer"
-                    class="flex items-center text-gray-700 hover:text-blue-600 transition-colors">
+                    class="flex items-center text-gray-700 hover:text-indigo-600 transition-colors">
                     <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" fill="currentColor"
                         viewBox="0 0 24 24">
                         <path
