@@ -40,11 +40,13 @@
 
         <!-- Projects Grid -->
         <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <ThreeDCard title="QuickEscape" image="quickescape_logo" tagline="Interactive Trip Timeline Organizer" />
-            <ThreeDCard title="Eurovisor" image="eurovisor_logo"
-                tagline="Explore Eurovision Song Contest performances" />
+            <ThreeDCard title="QuickEscape" image="quickescape_logo" tagline="Interactive Trip Timeline Organizer"
+                :miniCards="quickEscapeMiniCards" :exposure="0.5" />
+            <ThreeDCard title="Eurovisor" image="eurovisor_logo" tagline="Explore Eurovision Song Contest performances"
+                :miniCards="eurovisorMiniCards" :exposure="0.5" />
             <ThreeDCard ref="thirdCard" title="Portfolio" image="eurovisor_logo"
-                tagline="It's this website! Scroll down to find out more" />
+                tagline="It's this website! Scroll down to find out more" :miniCards="portfolioMiniCards"
+                :exposure="0.5" />
         </div>
     </div>
 </template>
@@ -63,6 +65,126 @@ export default {
         const headerSection = ref(null)
         const headerHeight = ref(0)
         let resizeObserver = null
+
+        // Mini cards configuration for QuickEscape
+        const quickEscapeMiniCards = [
+            {
+                position: [28.2, 16, -4],
+                rotation: [-10, 10, 2],
+                size: 13,
+                image: 'reactLogo',
+                textureScaler: 1.1,
+                materialColor: 0x5c6780,
+                exposure: 0.5
+            },
+            {
+                position: [42.1, 16, -1],
+                rotation: [-10, 5, 0],
+                size: 13,
+                image: 'jsLogo',
+                textureScaler: 1.3,
+                materialColor: 0xffaa16,
+                exposure: 0.9
+            },
+            {
+                position: [55.9, 16, -1],
+                rotation: [-10, -5, 0],
+                size: 13,
+                image: 'muiLogo',
+                textureScaler: 1.25,
+                materialColor: 0xffffff,
+                exposure: 0.7
+            },
+            {
+                position: [69.9, 16, -4],
+                rotation: [-10, -10, 0],
+                size: 13,
+                image: 'springLogo',
+                textureScaler: 1.1,
+                materialColor: 0xd42c2c,
+                exposure: 1
+            }
+        ]
+
+        // Mini cards configuration for Eurovisor
+        const eurovisorMiniCards = [
+            {
+                position: [28.2, 16, -4],
+                rotation: [-10, 10, 2],
+                size: 13,
+                image: 'nextLogo',
+                textureScaler: 0.8,
+                materialColor: 0x000000,
+                exposure: 1
+            },
+            {
+                position: [42.1, 16, -1],
+                rotation: [-10, 5, 0],
+                size: 13,
+                image: 'tsLogo',
+                textureScaler: 1.3,
+                materialColor: 0x1f86db,
+                exposure: 0.8
+            },
+            {
+                position: [55.9, 16, -1],
+                rotation: [-10, -5, 0],
+                size: 13,
+                image: 'tailwindLogo',
+                textureScaler: 1.3,
+                materialColor: 0xffffff,
+                exposure: 0.7
+            },
+            {
+                position: [69.9, 16, -4],
+                rotation: [-10, -10, 0],
+                size: 13,
+                image: 'eurovisionapiLogo',
+                textureScaler: 1.1,
+                materialColor: 0xffffff,
+                exposure: 0.7
+            }
+        ]
+
+        // Mini cards configuration for Portfolio
+        const portfolioMiniCards = [
+            {
+                position: [28, 16, -4],
+                rotation: [-10, 10, 2],
+                size: 13,
+                image: 'vueLogo',
+                textureScaler: 1.3,
+                materialColor: 0xffffff,
+                exposure: 0.7
+            },
+            {
+                position: [42, 16, -1],
+                rotation: [-10, 5, 0],
+                size: 13,
+                image: 'jsLogo',
+                textureScaler: 1.3,
+                materialColor: 0xffaa16,
+                exposure: 0.9
+            },
+            {
+                position: [55.9, 16, -1],
+                rotation: [-10, -5, 0],
+                size: 13,
+                image: 'tailwindLogo',
+                textureScaler: 1.3,
+                materialColor: 0xffffff,
+                exposure: 0.7
+            },
+            {
+                position: [70, 16, -4],
+                rotation: [-10, -10, 0],
+                size: 13,
+                image: 'threeLogo',
+                textureScaler: 1.3,
+                materialColor: 0x000000,
+                exposure: 1
+            }
+        ]
 
         const updateHeaderHeight = () => {
             if (headerSection.value) {
@@ -90,7 +212,10 @@ export default {
         return {
             thirdCard,
             headerSection,
-            headerHeight
+            headerHeight,
+            quickEscapeMiniCards,
+            eurovisorMiniCards,
+            portfolioMiniCards
         }
     }
 }

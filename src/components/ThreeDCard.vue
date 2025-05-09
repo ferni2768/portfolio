@@ -42,11 +42,27 @@ export default {
     textureScale: {
       type: Number,
       default: 1.25,
-      validator: value => value > 0 && value <= 1
+      validator: value => value > 0 && value <= 5
     },
     materialColor: {
       type: [Number, String],
       default: 0xffffff
+    },
+    exposure: {
+      type: Number,
+      default: 0.5
+    },
+    miniCards: {
+      type: Array,
+      default: () => [],
+      validator: value => {
+        return value.every(card => {
+          return 'position' in card && Array.isArray(card.position) && card.position.length === 3 &&
+            'size' in card && 'image' in card && 'textureScaler' in card && 'materialColor' in card &&
+            (!('rotation' in card) || (Array.isArray(card.rotation) && card.rotation.length === 3)) &&
+            (!('exposure' in card) || typeof card.exposure === 'number');
+        });
+      }
     }
   },
   setup(props) {
@@ -59,6 +75,7 @@ export default {
     const positionOffsetFactor = 0.175
     let resizeObserver = null
     let initialPosition = new THREE.Vector3(0, 0, 0)
+    let miniCubes = []
 
     // Constants to control the intensities of the lights
     const AMBIENT_LIGHT_INTENSITY = 2
@@ -68,6 +85,113 @@ export default {
     const resolvedImage = (!props.image.includes('/') && !props.image.endsWith('.jpg'))
       ? require(`@/assets/images/${props.image}.jpg`)
       : props.image
+
+    // Create mini card textures and materials
+    const createMiniCardTextureMaterial = async (imagePath, textureScaleValue, colorValue, toonTexture, exposure = 0.5) => {
+      return new Promise((resolve) => {
+        const textureLoader = new THREE.TextureLoader()
+        textureLoader.load(imagePath, (texture) => {
+          texture.wrapS = texture.wrapT = THREE.ClampToEdgeWrapping
+          texture.colorSpace = THREE.SRGBColorSpace
+
+          const adjustColorForExposure = (color, exp) => {
+            const hexColor = typeof color === 'number' ? color : parseInt(color.replace('#', ''), 16)
+            const r = ((hexColor >> 16) & 255) * exp
+            const g = ((hexColor >> 8) & 255) * exp
+            const b = (hexColor & 255) * exp
+            return (r << 16) | (g << 8) | b
+          }
+
+          // Calculate brightness multiplier based on exposure
+          const brightnessMultiplier = Math.max(0.2, exposure);
+
+          const material = new THREE.MeshToonMaterial({
+            color: new THREE.Color(brightnessMultiplier, brightnessMultiplier, brightnessMultiplier),
+            gradientMap: toonTexture
+          })
+          material.map = texture
+
+          const scale = textureScaleValue
+          const offsetX = (1 - scale) / 2
+          const offsetY = (1 - scale) / 2
+
+          // Apply scaling and offset
+          texture.repeat.set(scale, scale)
+          texture.offset.set(offsetX, offsetY)
+
+          const adjustedColor = adjustColorForExposure(colorValue, brightnessMultiplier)
+          const backgroundMaterial = new THREE.MeshToonMaterial({
+            color: adjustedColor,
+            gradientMap: toonTexture
+          })
+
+          resolve({
+            frontMaterial: material,
+            backgroundMaterial: backgroundMaterial
+          })
+        })
+      })
+    }
+
+    // Create mini cubes
+    const createMiniCubes = async (toonTexture) => {
+      if (props.miniCards.length === 0) return
+
+      for (const miniCard of props.miniCards) {
+        const resolvedMiniImage = (!miniCard.image.includes('/') && !miniCard.image.endsWith('.jpg'))
+          ? require(`@/assets/images/mini/${miniCard.image}.jpg`)
+          : miniCard.image
+
+        // Calculate position relative to the parent card
+        const xPos = (miniCard.position[0] / 100) * 5 - 2.5
+        const yPos = (miniCard.position[1] / 100) * 5 - 2.5
+        const zPos = 1.5 - (miniCard.position[2] / 100) * 3
+
+        const miniSize = Math.max((miniCard.size / 100) * 5, 0.2)
+        const geometry = new RoundedBoxGeometry(miniSize, miniSize, miniSize * 0.6, 2, 5)
+
+        try {
+          const miniCardExposure = 'exposure' in miniCard
+            ? Math.min(Math.max(miniCard.exposure, 0), 1)
+            : props.exposure;
+
+          const { frontMaterial, backgroundMaterial } = await createMiniCardTextureMaterial(
+            resolvedMiniImage,
+            Math.min(Math.max(miniCard.textureScaler, 0.1), 10),
+            miniCard.materialColor,
+            toonTexture,
+            miniCardExposure
+          )
+
+          // Create the materials for the mini cube
+          const materials = [
+            backgroundMaterial,
+            backgroundMaterial,
+            backgroundMaterial,
+            backgroundMaterial,
+            frontMaterial, // Front face
+            backgroundMaterial
+          ]
+
+          const miniCube = new THREE.Mesh(geometry, materials)
+          miniCube.position.set(xPos, yPos, zPos)
+
+          // Apply rotation
+          if (miniCard.rotation && Array.isArray(miniCard.rotation) && miniCard.rotation.length === 3) {
+            miniCube.rotation.set(
+              THREE.MathUtils.degToRad(miniCard.rotation[0]),
+              THREE.MathUtils.degToRad(miniCard.rotation[1]),
+              THREE.MathUtils.degToRad(miniCard.rotation[2])
+            );
+          }
+
+          cube.add(miniCube)
+          miniCubes.push(miniCube)
+        } catch (error) {
+          console.error(`Error creating mini card for ${props.title}:`, error)
+        }
+      }
+    }
 
     const initThree = async () => {
       scene = new THREE.Scene()
@@ -83,10 +207,7 @@ export default {
       renderer.setSize(width, height, false)
       renderer.outputColorSpace = THREE.SRGBColorSpace
       renderer.toneMapping = THREE.ACESFilmicToneMapping
-      renderer.toneMappingExposure = 0.5
-
-      renderer.shadowMap.enabled = true
-      renderer.shadowMap.type = THREE.PCFSoftShadowMap
+      renderer.toneMappingExposure = props.exposure
 
       // Create the rounded box geometry
       const geometry = new RoundedBoxGeometry(5, 5, 1.8, 2, 5)
@@ -105,6 +226,7 @@ export default {
           gradientMap: toonTexture
         })
 
+        // Apply the texture
         frontMaterial.map = texture
         const scale = props.textureScale
         const offsetX = (1 - scale) / 2
@@ -114,27 +236,35 @@ export default {
         texture.repeat.set(scale, scale)
         texture.offset.set(offsetX, offsetY)
 
+        // Use renderer's exposure settings
+        frontMaterial.toneMappingExposure = props.exposure
+
         const materials = [
           new THREE.MeshToonMaterial({
             color: props.materialColor,
-            gradientMap: toonTexture
+            gradientMap: toonTexture,
+            toneMappingExposure: props.exposure
           }),
           new THREE.MeshToonMaterial({
             color: props.materialColor,
-            gradientMap: toonTexture
+            gradientMap: toonTexture,
+            toneMappingExposure: props.exposure
           }),
           new THREE.MeshToonMaterial({
             color: props.materialColor,
-            gradientMap: toonTexture
+            gradientMap: toonTexture,
+            toneMappingExposure: props.exposure
           }),
           new THREE.MeshToonMaterial({
             color: props.materialColor,
-            gradientMap: toonTexture
+            gradientMap: toonTexture,
+            toneMappingExposure: props.exposure
           }),
           frontMaterial, // Front face with texture
           new THREE.MeshToonMaterial({
             color: props.materialColor,
-            gradientMap: toonTexture
+            gradientMap: toonTexture,
+            toneMappingExposure: props.exposure
           })
         ]
 
@@ -142,31 +272,30 @@ export default {
         scene.add(cube)
         initialPosition.copy(cube.position)
 
-        // Ambient light
-        const ambientLight = new THREE.AmbientLight(0xffffff, AMBIENT_LIGHT_INTENSITY)
-        scene.add(ambientLight)
+        // Create mini cubes
+        createMiniCubes(toonTexture).then(() => {
+          const ambientLight = new THREE.AmbientLight(0xffffff, AMBIENT_LIGHT_INTENSITY)
+          scene.add(ambientLight)
 
-        // Directional light
-        const directionalLight = new THREE.DirectionalLight(0xffffff, DIRECTIONAL_LIGHT_INTENSITY)
-        directionalLight.position.set(3, 2, 0.5)
-        directionalLight.target = cube
-        scene.add(directionalLight.target)
+          // Directional light
+          const directionalLight = new THREE.DirectionalLight(0xffffff, DIRECTIONAL_LIGHT_INTENSITY)
+          directionalLight.position.set(3, 2, 0.5)
+          directionalLight.target = cube
+          scene.add(directionalLight.target)
+          scene.add(directionalLight)
 
-        // Configure shadow properties
-        directionalLight.castShadow = true
-        directionalLight.shadow.mapSize.width = 1024
-        directionalLight.shadow.mapSize.height = 1024
-        directionalLight.shadow.camera.near = 0.5
-        directionalLight.shadow.camera.far = 50
-        directionalLight.shadow.camera.left = -10
-        directionalLight.shadow.camera.right = 10
-        directionalLight.shadow.camera.top = 10
-        directionalLight.shadow.camera.bottom = -10
+          // Point light
+          const pointLight = new THREE.PointLight(0xffffff, 1)
+          pointLight.position.set(0, 0, 3)
+          scene.add(pointLight)
 
-        scene.add(directionalLight)
-
-        loaded.value = true
-        animate()
+          loaded.value = true
+          animate()
+        }).catch(error => {
+          console.error(`Error creating mini cards for ${props.title}:`, error)
+          loaded.value = true
+          animate()
+        })
       })
     }
 
