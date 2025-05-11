@@ -1,16 +1,32 @@
 <template>
   <div class="relative overflow-hidden">
+    <!-- 3D background waves -->
+    <ThreeDBackgroundWaves :translateY="projectsTranslate" :titleHeight="projectsContent?.headerHeight || 0" />
+
+    <!-- Down Arrow -->
+    <div
+      class="fixed left-1/2 transform -translate-x-1/2 z-50 transition-opacity duration-300 ease-in text-neutral-400 hover:text-neutral-600"
+      :class="{ 'cursor-pointer': arrowOpacity > 0, 'pointer-events-none': arrowOpacity <= 0 }" :style="{
+        transform: `translate(-50%, calc(${arrowTranslate}px - 125%))`,
+        opacity: arrowOpacity,
+      }" @click="scrollDown">
+      <svg width="200" height="100" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+        stroke-linecap="round" stroke-linejoin="round">
+        <polyline points="6 11 12 15 18 11" />
+      </svg>
+    </div>
+
     <!-- Projects Section -->
-    <div class="min-h-screen relative top-0 w-full h-screen z-20 flex justify-center">
-      <section ref="projectsSection"
-        class="fixed min-h-screen w-full z-20 bg-white flex justify-center will-change-transform"
+    <div class="min-h-screen relative top-0 w-full h-screen flex justify-center">
+      <div class="absolute top-0 left-0 w-full h-screen bg-white z-10"></div>
+      <section ref="projectsSection" class="fixed min-h-screen w-full z-30 flex justify-center will-change-transform"
         :style="{ transform: `translateY(${projectsTranslate}px)` }">
         <ProjectsSection ref="projectsContent" />
       </section>
     </div>
 
     <!-- Transition Stripes -->
-    <div class="vertical-stripes-container fixed top-0 left-0 w-full h-screen pointer-events-none z-30">
+    <div class="vertical-stripes-container fixed top-0 left-0 w-full h-screen pointer-events-none z-40">
       <div v-for="i in (windowWidth >= 768 ? 9 : 5)" :key="i"
         class="vertical-stripe transition-none will-change-transform bg-black absolute" :style="{
           left: `${(i - 1) * (100 / (windowWidth >= 768 ? 9 : 5))}%`,
@@ -23,11 +39,21 @@
     </div>
 
     <!-- About Me Section -->
-    <section ref="aboutSection" class="z-40 fixed w-full min-h-[75vh] will-change-transform pb-10 px-10" :style="{
+    <section ref="aboutSection" class="z-50 fixed w-full min-h-[75vh] will-change-transform pb-10 px-10" :style="{
       top: '0',
       transform: `translateY(${aboutTranslate}px)`
     }">
       <AboutSection />
+
+      <!-- Up Arrow -->
+      <div
+        class="fixed bottom-4 left-1/2 transform -translate-x-1/2 z-50 opacity-50 text-neutral-600 hover:text-neutral-400 cursor-pointer"
+        @click="scrollUp">
+        <svg width="200" height="100" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+          stroke-linecap="round" stroke-linejoin="round">
+          <polyline points="6 13 12 9 18 13" />
+        </svg>
+      </div>
     </section>
 
     <!-- Dynamic spacer to allow proper scrolling -->
@@ -39,12 +65,14 @@
 import { ref, onMounted, onBeforeUnmount, computed } from 'vue'
 import AboutSection from './components/AboutSection.vue'
 import ProjectsSection from './components/ProjectsSection.vue'
+import ThreeDBackgroundWaves from './components/ThreeDBackgroundWaves.vue'
 
 export default {
   name: 'App',
   components: {
     AboutSection,
     ProjectsSection,
+    ThreeDBackgroundWaves
   },
   setup() {
     const projectsSection = ref(null)
@@ -73,10 +101,15 @@ export default {
     const currentScrollY = ref(0)
     const smoothedScrollY = ref(0)
 
+    // Arrow state
+    const arrowTranslate = ref(window.innerHeight * 1.5)
+    const arrowOpacity = ref(0.4)
+
     // Target values for smooth animations
     const targetProjectsTranslate = ref(0)
     const targetAboutTranslate = ref(stripeStart.value)
     const targetStripesPosition = ref(new Array(9).fill(stripeStart.value))
+    const targetArrowTranslate = ref(0)
 
     // Track section heights
     const projectsSectionHeight = ref(0)
@@ -155,13 +188,20 @@ export default {
         if (scrolled <= transitionPoint) {
           // Phase 1: Move with the scroll
           targetStripesPosition.value[i] = stripeStart - scrolled
+          targetArrowTranslate.value = stripeStart - scrolled
+          arrowOpacity.value = 0.4
         } else {
           // Phase 2: After transition point, move at a different rate
           const scrollBeyondThreshold = scrolled - transitionPoint
           const speedFactor = windowWidth.value >= 768
             ? stripeSpeedFactors[i]
             : mobileStripeSpeedFactors[i]
-          targetStripesPosition.value[i] = windowHeight - (scrollBeyondThreshold * speedFactor)
+
+          const calculatedPosition = windowHeight - (scrollBeyondThreshold * speedFactor)
+          const maxUpwardLimit = windowHeight - (windowHeight * 1.5)
+          targetStripesPosition.value[i] = Math.max(calculatedPosition, maxUpwardLimit)
+
+          arrowOpacity.value = 0
         }
       }
 
@@ -169,6 +209,7 @@ export default {
       if (isTouchDevice.value) {
         projectsTranslate.value = targetProjectsTranslate.value
         aboutTranslate.value = targetAboutTranslate.value
+        arrowTranslate.value = targetArrowTranslate.value
 
         const stripeCount = windowWidth.value >= 768 ? 9 : 5
         for (let i = 0; i < stripeCount; i++) {
@@ -184,6 +225,7 @@ export default {
 
         projectsTranslate.value += (targetProjectsTranslate.value - projectsTranslate.value) * easeOutFactor
         aboutTranslate.value += (targetAboutTranslate.value - aboutTranslate.value) * easeOutFactor
+        arrowTranslate.value += (targetArrowTranslate.value - arrowTranslate.value) * easeOutFactor
 
         const stripeCount = windowWidth.value >= 768 ? 9 : 5
         for (let i = 0; i < stripeCount; i++) {
@@ -213,6 +255,21 @@ export default {
       handleScroll()
     }
 
+    const scrollDown = () => {
+      const scrollAmount = window.innerHeight * 0.25;
+      window.scrollTo({
+        top: window.scrollY + scrollAmount,
+        behavior: 'smooth'
+      });
+    };
+
+    const scrollUp = () => {
+      window.scrollTo({
+        top: 0,
+        behavior: 'smooth'
+      })
+    }
+
     onMounted(() => {
       detectTouchDevice()
       window.addEventListener('scroll', handleScroll)
@@ -240,7 +297,11 @@ export default {
       stripesPosition,
       totalScrollHeight,
       smoothedScrollY,
-      windowWidth
+      windowWidth,
+      arrowTranslate,
+      arrowOpacity,
+      scrollDown,
+      scrollUp
     }
   },
 }
