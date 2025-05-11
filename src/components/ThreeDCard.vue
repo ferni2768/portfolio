@@ -11,7 +11,7 @@
         :translateY="circleTranslateY" @circle-click="handleCardClick" ref="mouseCircleRef" />
     </div>
     <div class="text-center text-2xl text-black font-normal">
-      {{ title }}
+      {{ displayTitle }}
     </div>
     <div class="text-center text-lg text-neutral-400 font-light mt-1">
       {{ tagline }}
@@ -35,6 +35,9 @@ const MAIN_CARD_FONT_SIZE = 16
 const MINI_CARD_FONT_SIZE = 10
 const PORTFOLIO_CARD_COLOR = "#8c8c8c"
 const NON_PORTFOLIO_CARD_COLOR = "#303030"
+const CHECK_MARK = " ✓"
+
+const visitedSites = new Set();
 
 export default {
   name: 'ThreeDCard',
@@ -105,6 +108,28 @@ export default {
     const circleSize = ref(MAIN_CARD_CIRCLE_SIZE)
     const circleFontSize = ref(MAIN_CARD_FONT_SIZE)
     const isHoveringMiniCard = ref(false)
+    const hasVisited = ref(false)
+
+    // Mark site as visited
+    const markSiteAsVisited = (url) => {
+      if (!url) return
+      visitedSites.add(url)
+      hasVisited.value = true
+    }
+
+    const checkIfVisited = () => {
+      if (props.url) {
+        hasVisited.value = visitedSites.has(props.url)
+      }
+      if (props.isPortfolio && props.url) {
+        markSiteAsVisited(props.url)
+      }
+    }
+
+    // Display title with check mark if visited
+    const displayTitle = computed(() => {
+      return hasVisited.value ? `${props.title}${CHECK_MARK}` : props.title
+    })
 
     const circleText = computed(() => {
       if (hoveredMiniCard.value) {
@@ -544,6 +569,13 @@ export default {
 
           setTimeout(() => {
             window.open(urlToOpen, '_blank');
+
+            if (urlToOpen === props.url) {
+              setTimeout(() => {
+                markSiteAsVisited(urlToOpen);
+              }, 100);
+            }
+
             isAnimating.value = false;
             circleScale.value = 1;
           }, 300);
@@ -567,6 +599,8 @@ export default {
         if (canvas.value && canvas.value.parentNode) {
           resizeObserver.observe(canvas.value.parentNode)
         }
+
+        checkIfVisited()
       }, 50)
 
       window.addEventListener('resize', onWindowResize)
@@ -607,7 +641,8 @@ export default {
       circleTranslateY,
       circleSize,
       circleFontSize,
-      getCursorStyle
+      getCursorStyle,
+      displayTitle
     }
   }
 }
