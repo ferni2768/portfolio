@@ -11,9 +11,12 @@
       </div>
       <div ref="image1"
         class="image-container md:w-1/2 p-6 order-2 flex items-center justify-center h-64 overflow-hidden"
-        :class="{ 'slide-from-right': image1Visible }">
+        :class="{ 'slide-from-right': image1Visible }" @mousemove="onImage1MouseMove" @mouseenter="onImage1MouseEnter"
+        @mouseleave="onImage1MouseLeave" :style="{ cursor: showImage1Circle ? 'none' : 'auto' }">
         <img src="@/assets/images/aboutMe/walking.jpg" alt="About Me" class="object-cover h-full w-full no-drag"
           draggable="false" />
+        <MouseCircle v-if="showImage1Circle" :position="image1CirclePosition" color="#000000" textColor="#ffffff"
+          text="A little bit about me..." :size="150" :fontSize="20" :scale="1" :animating="false" />
       </div>
     </div>
 
@@ -52,9 +55,12 @@
       </div>
       <div ref="image3"
         class="image-container md:w-1/2 p-6 order-2 flex items-center justify-center h-64 overflow-hidden"
-        :class="{ 'slide-from-right': image3Visible }">
+        :class="{ 'slide-from-right': image3Visible }" @mousemove="onImage3MouseMove" @mouseenter="onImage3MouseEnter"
+        @mouseleave="onImage3MouseLeave" :style="{ cursor: showImage3Circle ? 'none' : 'auto' }">
         <img src="@/assets/images/aboutMe/walking.jpg" alt="Hobbies" class="object-cover h-full w-full no-drag"
           draggable="false" />
+        <MouseCircle v-if="showImage3Circle" :position="image3CirclePosition" color="#000000" textColor="#ffffff"
+          text="When I'm not coding..." :size="150" :fontSize="20" :scale="1" :animating="false" />
       </div>
     </div>
 
@@ -80,13 +86,23 @@
 </template>
 
 <script>
+import MouseCircle from './MouseCircle.vue';
+
 export default {
   name: 'AboutSection',
+  components: {
+    MouseCircle
+  },
   data() {
     return {
       image1Visible: false,
       imagesVisible: false,
-      image3Visible: false
+      image3Visible: false,
+
+      showImage1Circle: false,
+      image1CirclePosition: { x: 0, y: 0 },
+      showImage3Circle: false,
+      image3CirclePosition: { x: 0, y: 0 }
     }
   },
   mounted() {
@@ -104,6 +120,73 @@ export default {
       });
     }, options);
     [this.$refs.image1, this.$refs.imageGroup, this.$refs.image3].forEach(el => observer.observe(el));
+
+    window.addEventListener('scroll', this.handleScroll);
+  },
+  beforeUnmount() {
+    window.removeEventListener('scroll', this.handleScroll);
+  },
+  methods: {
+    // Mouse handlers for first image
+    onImage1MouseMove(event) {
+      if (this.$refs.image1) {
+        const rect = this.$refs.image1.getBoundingClientRect();
+        this.image1CirclePosition = {
+          x: event.clientX - rect.left,
+          y: event.clientY - rect.top
+        };
+      }
+    },
+    onImage1MouseEnter() {
+      this.showImage1Circle = true;
+    },
+    onImage1MouseLeave() {
+      this.showImage1Circle = false;
+    },
+
+    // Mouse handlers for third image
+    onImage3MouseMove(event) {
+      if (this.$refs.image3) {
+        const rect = this.$refs.image3.getBoundingClientRect();
+        this.image3CirclePosition = {
+          x: event.clientX - rect.left,
+          y: event.clientY - rect.top
+        };
+      }
+    },
+    onImage3MouseEnter() {
+      this.showImage3Circle = true;
+    },
+    onImage3MouseLeave() {
+      this.showImage3Circle = false;
+    },
+
+    // Handle scroll events to update mouse circle position
+    handleScroll() {
+      if (this.showImage1Circle && this.$refs.image1) {
+        const rect = this.$refs.image1.getBoundingClientRect();
+        const lastMouseEvent = window.lastMouseEvent;
+
+        if (lastMouseEvent) {
+          this.image1CirclePosition = {
+            x: lastMouseEvent.clientX - rect.left,
+            y: lastMouseEvent.clientY - rect.top
+          };
+        }
+      }
+
+      if (this.showImage3Circle && this.$refs.image3) {
+        const rect = this.$refs.image3.getBoundingClientRect();
+        const lastMouseEvent = window.lastMouseEvent;
+
+        if (lastMouseEvent) {
+          this.image3CirclePosition = {
+            x: lastMouseEvent.clientX - rect.left,
+            y: lastMouseEvent.clientY - rect.top
+          };
+        }
+      }
+    }
   }
 }
 </script>

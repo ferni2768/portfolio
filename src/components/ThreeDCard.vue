@@ -1,10 +1,14 @@
 <template>
   <div :style="{ opacity: loaded ? 1 : 0, transition: 'opacity 0.3s ease-in' }"
     class="w-full flex flex-col items-center">
-    <div class="w-full h-64 relative">
+    <div class="w-full h-64 relative" ref="cardContainer" @mousemove="onCardMouseMove" @mouseout="onCardMouseOut"
+      @click="handleCardClick" :style="{ cursor: getCursorStyle() }">
       <div class="w-full h-full">
         <canvas ref="canvas" class="w-full h-full"></canvas>
       </div>
+      <MouseCircle v-if="showCircle" :position="circlePosition" :color="circleColor" :text="circleText"
+        :scale="circleScale" :animating="isAnimating" :size="circleSize" :fontSize="circleFontSize"
+        :translateY="circleTranslateY" @circle-click="handleCardClick" ref="mouseCircleRef" />
     </div>
     <div class="text-center text-2xl text-black font-normal">
       {{ title }}
@@ -16,16 +20,27 @@
 </template>
 
 <script>
-import { onMounted, ref, onBeforeUnmount } from 'vue'
+import { onMounted, ref, onBeforeUnmount, computed } from 'vue'
 import * as THREE from 'three'
 import { RoundedBoxGeometry } from 'three/examples/jsm/geometries/RoundedBoxGeometry.js'
 import TOON_TONE from '@/assets/images/textures/threeTone.jpg'
+import MouseCircle from '@/components/MouseCircle.vue'
 
 const MAX_RESOLUTION = 3
 const MAX_ROTATION = 0.6
 
+const MAIN_CARD_CIRCLE_SIZE = 110
+const MINI_CARD_CIRCLE_SIZE = 65
+const MAIN_CARD_FONT_SIZE = 16
+const MINI_CARD_FONT_SIZE = 10
+const PORTFOLIO_CARD_COLOR = "#8c8c8c"
+const NON_PORTFOLIO_CARD_COLOR = "#303030"
+
 export default {
   name: 'ThreeDCard',
+  components: {
+    MouseCircle
+  },
   props: {
     title: {
       type: String,
@@ -52,6 +67,10 @@ export default {
       type: Number,
       default: 0.5
     },
+    url: {
+      type: String,
+      default: ''
+    },
     miniCards: {
       type: Array,
       default: () => [],
@@ -60,14 +79,48 @@ export default {
           return 'position' in card && Array.isArray(card.position) && card.position.length === 3 &&
             'size' in card && 'image' in card && 'textureScaler' in card && 'materialColor' in card &&
             (!('rotation' in card) || (Array.isArray(card.rotation) && card.rotation.length === 3)) &&
-            (!('exposure' in card) || typeof card.exposure === 'number');
+            (!('exposure' in card) || typeof card.exposure === 'number') &&
+            (!('name' in card) || typeof card.name === 'string') &&
+            (!('url' in card) || typeof card.url === 'string');
         });
       }
+    },
+    isPortfolio: {
+      type: Boolean,
+      default: false
     }
   },
   setup(props) {
     const canvas = ref(null)
     const loaded = ref(false)
+    const cardContainer = ref(null)
+    const showCircle = ref(false)
+    const circlePosition = ref({ x: 0, y: 0 })
+    const hoveredMiniCard = ref(null)
+    const circleColor = ref('#000000')
+    const isAnimating = ref(false)
+    const circleScale = ref(1)
+    const mouseCircleRef = ref(null)
+    const circleTranslateY = ref(0)
+    const circleSize = ref(MAIN_CARD_CIRCLE_SIZE)
+    const circleFontSize = ref(MAIN_CARD_FONT_SIZE)
+    const isHoveringMiniCard = ref(false)
+
+    const circleText = computed(() => {
+      if (hoveredMiniCard.value) {
+        return hoveredMiniCard.value.name;
+      }
+
+      if (props.isPortfolio) {
+        return "You are here!";
+      }
+
+      if (props.title === 'QuickEscape') {
+        return 'Go to' + '\n' + 'QE';
+      }
+
+      return `Go to ${props.title}`;
+    });
     let scene, camera, renderer, cube, animationId
     let mouseOffsetX = 0, mouseOffsetY = 0
     let lastMouseX = null, lastMouseY = null
@@ -76,6 +129,7 @@ export default {
     let resizeObserver = null
     let initialPosition = new THREE.Vector3(0, 0, 0)
     let miniCubes = []
+    let activeUrl = null
 
     // Constants to control the intensities of the lights
     const AMBIENT_LIGHT_INTENSITY = 2
@@ -367,6 +421,140 @@ export default {
       }
     }
 
+    // Helper function to determine cursor style
+    const getCursorStyle = () => {
+      if (!showCircle.value) return 'auto';
+      if (isHoveringMiniCard.value) return 'pointer';
+      return 'none';
+    }
+
+    const onCardMouseMove = (event) => {
+      // Update circle position relative to the card container
+      const rect = cardContainer.value.getBoundingClientRect()
+      circlePosition.value = {
+        x: event.clientX - rect.left,
+        y: event.clientY - rect.top
+      }
+
+      // Check if mouse is over any object in the scene
+      if (scene && camera && renderer && cube) {
+        const mouseX = ((event.clientX - rect.left) / rect.width) * 2 - 1;
+        const mouseY = -((event.clientY - rect.top) / rect.height) * 2 + 1;
+
+        // Create raycaster
+        const raycaster = new THREE.Raycaster();
+        raycaster.setFromCamera(new THREE.Vector2(mouseX, mouseY), camera);
+
+        // Reset values
+        hoveredMiniCard.value = null;
+        activeUrl = null;
+        circleTranslateY.value = 0;
+        circleSize.value = MAIN_CARD_CIRCLE_SIZE;
+        circleFontSize.value = MAIN_CARD_FONT_SIZE;
+        isHoveringMiniCard.value = false;
+        showCircle.value = false;
+
+        const miniCubeIntersects = raycaster.intersectObjects(miniCubes);
+
+        if (miniCubeIntersects.length === 0 && miniCubes.length > 0) {
+          const ERROR_MARGIN = 3;
+          const errorMarginX = (ERROR_MARGIN / rect.width) * 2;
+
+          // Check left margin
+          const raycasterLeft = new THREE.Raycaster();
+          raycasterLeft.setFromCamera(new THREE.Vector2(mouseX - errorMarginX, mouseY), camera);
+          const leftIntersects = raycasterLeft.intersectObjects(miniCubes);
+
+          // Check right margin
+          const raycasterRight = new THREE.Raycaster();
+          raycasterRight.setFromCamera(new THREE.Vector2(mouseX + errorMarginX, mouseY), camera);
+          const rightIntersects = raycasterRight.intersectObjects(miniCubes);
+
+          if (leftIntersects.length > 0) {
+            const miniCubeIndex = miniCubes.indexOf(leftIntersects[0].object);
+            handleMiniCardHover(miniCubeIndex);
+          } else if (rightIntersects.length > 0) {
+            const miniCubeIndex = miniCubes.indexOf(rightIntersects[0].object);
+            handleMiniCardHover(miniCubeIndex);
+          } else {
+            const mainCardIntersects = raycaster.intersectObject(cube);
+            if (mainCardIntersects.length > 0) {
+              showCircle.value = true;
+
+              if (props.isPortfolio) {
+                circleColor.value = PORTFOLIO_CARD_COLOR;
+              } else {
+                circleColor.value = NON_PORTFOLIO_CARD_COLOR;
+              }
+
+              activeUrl = props.url || null;
+            }
+          }
+        } else if (miniCubeIntersects.length > 0) {
+          const miniCubeIndex = miniCubes.indexOf(miniCubeIntersects[0].object);
+          handleMiniCardHover(miniCubeIndex);
+        } else {
+          const mainCardIntersects = raycaster.intersectObject(cube);
+          if (mainCardIntersects.length > 0) {
+            showCircle.value = true;
+
+            if (props.isPortfolio) {
+              circleColor.value = PORTFOLIO_CARD_COLOR;
+            } else {
+              circleColor.value = NON_PORTFOLIO_CARD_COLOR;
+            }
+
+            activeUrl = props.url || null;
+          }
+        }
+      }
+    }
+
+    // Helper function to handle mini card hover state
+    const handleMiniCardHover = (miniCubeIndex) => {
+      if (miniCubeIndex !== -1 && props.miniCards[miniCubeIndex]) {
+        hoveredMiniCard.value = props.miniCards[miniCubeIndex];
+        showCircle.value = true;
+        circleTranslateY.value = -95;
+        circleSize.value = MINI_CARD_CIRCLE_SIZE;
+        circleFontSize.value = MINI_CARD_FONT_SIZE;
+        isHoveringMiniCard.value = true;
+
+        // Use the material color from the mini card directly
+        const cardColor = props.miniCards[miniCubeIndex].materialColor;
+        const color = typeof cardColor === 'number'
+          ? `#${cardColor.toString(16).padStart(6, '0')}`
+          : cardColor;
+
+        circleColor.value = color;
+        activeUrl = props.miniCards[miniCubeIndex].url || null;
+      }
+    }
+
+    // Handle card click to open URLs
+    const handleCardClick = () => {
+      const urlToOpen = activeUrl;
+
+      if (showCircle.value && urlToOpen && !isAnimating.value) {
+        isAnimating.value = true;
+        circleScale.value = 1.2;
+
+        setTimeout(() => {
+          circleScale.value = 0;
+
+          setTimeout(() => {
+            window.open(urlToOpen, '_blank');
+            isAnimating.value = false;
+            circleScale.value = 1;
+          }, 300);
+        }, 150);
+      }
+    }
+
+    const onCardMouseOut = () => {
+      showCircle.value = false;
+    }
+
     onMounted(() => {
       setTimeout(() => {
         initThree()
@@ -403,7 +591,23 @@ export default {
 
     return {
       canvas,
-      loaded
+      loaded,
+      cardContainer,
+      showCircle,
+      circlePosition,
+      circleColor,
+      hoveredMiniCard,
+      onCardMouseMove,
+      onCardMouseOut,
+      handleCardClick,
+      circleText,
+      isAnimating,
+      circleScale,
+      mouseCircleRef,
+      circleTranslateY,
+      circleSize,
+      circleFontSize,
+      getCursorStyle
     }
   }
 }

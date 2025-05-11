@@ -1,8 +1,13 @@
 <template>
     <div class="container mx-auto px-4 py-10">
         <!-- Header Section -->
-        <div ref="headerSection" class="mb-5 md:mb-16">
-            <h1 class="text-4xl font-bold text-center mb-3">Alejandro Fernández Vázquez</h1>
+        <div ref="headerSection" class="mb-5 md:mb-16 relative">
+            <h1 class="relative text-4xl font-bold text-center mb-3">
+                <div class="inline-block" ref="nameHeading" @mousemove="onNameMouseMove" @mouseenter="onNameMouseEnter"
+                    @mouseleave="onNameMouseLeave" @click="handleCircleClick"
+                    :style="{ cursor: showNameCircle ? 'pointer' : 'auto' }">Alejandro
+                    Fernández Vázquez</div>
+            </h1>
             <p class="text-xl text-center text-gray-600 mb-6">Software Developer | Focused on User-Centric App Design
             </p>
 
@@ -36,17 +41,22 @@
                     LinkedIn
                 </a>
             </div>
+
+            <!-- Mouse Circle -->
+            <MouseCircle v-if="showNameCircle" :position="nameCirclePosition" color="#3367c0" textColor="#ffffff"
+                text="Welcome!" :size="90" :fontSize="15" :scale="nameCircleScale" :animating="isAnimating"
+                :translateY="90" ref="mouseCircleRef" @circle-click="handleCircleClick" />
         </div>
 
         <!-- Projects Grid -->
         <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
             <ThreeDCard title="QuickEscape" image="quickescape_logo" tagline="Interactive Trip Timeline Organizer"
-                :miniCards="quickEscapeMiniCards" :exposure="0.5" />
+                :miniCards="quickEscapeMiniCards" :exposure="0.5" url="https://quickescape.netlify.app/" />
             <ThreeDCard title="Eurovisor" image="eurovisor_logo" tagline="Explore Eurovision Song Contest performances"
-                :miniCards="eurovisorMiniCards" :exposure="0.5" />
+                :miniCards="eurovisorMiniCards" :exposure="0.5" url="https://eurovisor.netlify.app/" />
             <ThreeDCard ref="thirdCard" title="Portfolio" image="eurovisor_logo"
                 tagline="It's this website! Scroll down to find out more" :miniCards="portfolioMiniCards"
-                :exposure="0.5" />
+                :exposure="0.5" :isPortfolio="true" />
         </div>
     </div>
 </template>
@@ -54,17 +64,65 @@
 <script>
 import { ref, onMounted, onBeforeUnmount } from 'vue'
 import ThreeDCard from './ThreeDCard.vue'
+import MouseCircle from './MouseCircle.vue'
 
 export default {
     name: 'ProjectsSection',
     components: {
         ThreeDCard,
+        MouseCircle
     },
     setup() {
         const thirdCard = ref(null)
         const headerSection = ref(null)
         const headerHeight = ref(0)
+        const nameHeading = ref(null)
+        const mouseCircleRef = ref(null)
         let resizeObserver = null
+
+        // Mouse circle state
+        const showNameCircle = ref(false)
+        const nameCirclePosition = ref({ x: 0, y: 0 })
+        const nameCircleScale = ref(1)
+        const isAnimating = ref(false)
+        const linkedInUrl = "https://www.linkedin.com/in/afernandez3/"
+
+        // Mouse handlers for name heading
+        const onNameMouseMove = (event) => {
+            if (nameHeading.value) {
+                const rect = headerSection.value.getBoundingClientRect()
+                nameCirclePosition.value = {
+                    x: event.clientX - rect.left + 5,
+                    y: event.clientY - rect.top
+                }
+            }
+        }
+
+        const onNameMouseEnter = () => {
+            showNameCircle.value = true;
+        }
+
+        const onNameMouseLeave = () => {
+            showNameCircle.value = false;
+        }
+
+        // Handle click on the circle
+        const handleCircleClick = () => {
+            if (showNameCircle.value && !isAnimating.value) {
+                isAnimating.value = true;
+                nameCircleScale.value = 1.2;
+
+                setTimeout(() => {
+                    nameCircleScale.value = 0;
+
+                    setTimeout(() => {
+                        window.open(linkedInUrl, '_blank');
+                        isAnimating.value = false;
+                        nameCircleScale.value = 1;
+                    }, 300);
+                }, 150);
+            }
+        }
 
         // Mini cards configuration for QuickEscape
         const quickEscapeMiniCards = [
@@ -75,7 +133,9 @@ export default {
                 image: 'reactLogo',
                 textureScaler: 1.1,
                 materialColor: 0x5c6780,
-                exposure: 0.5
+                exposure: 0.5,
+                name: 'React',
+                url: 'https://reactjs.org'
             },
             {
                 position: [42.1, 16, -1],
@@ -84,7 +144,9 @@ export default {
                 image: 'jsLogo',
                 textureScaler: 1.3,
                 materialColor: 0xffaa16,
-                exposure: 0.9
+                exposure: 0.9,
+                name: 'JavaScript',
+                url: 'https://developer.mozilla.org/en-US/docs/Web/JavaScript'
             },
             {
                 position: [55.9, 16, -1],
@@ -92,8 +154,10 @@ export default {
                 size: 13,
                 image: 'muiLogo',
                 textureScaler: 1.25,
-                materialColor: 0xffffff,
-                exposure: 0.7
+                materialColor: 0x47a6ff,
+                exposure: 0.7,
+                name: 'Material UI',
+                url: 'https://mui.com/material-ui/getting-started/'
             },
             {
                 position: [69.9, 16, -4],
@@ -102,7 +166,9 @@ export default {
                 image: 'springLogo',
                 textureScaler: 1.1,
                 materialColor: 0xd42c2c,
-                exposure: 1
+                exposure: 1,
+                name: 'React Spring',
+                url: 'https://react-spring.dev'
             }
         ]
 
@@ -115,7 +181,9 @@ export default {
                 image: 'nextLogo',
                 textureScaler: 0.8,
                 materialColor: 0x000000,
-                exposure: 1
+                exposure: 1,
+                name: 'Next.js',
+                url: 'https://nextjs.org/docs'
             },
             {
                 position: [42.1, 16, -1],
@@ -124,7 +192,9 @@ export default {
                 image: 'tsLogo',
                 textureScaler: 1.3,
                 materialColor: 0x1f86db,
-                exposure: 0.8
+                exposure: 0.8,
+                name: 'TypeScript',
+                url: 'https://www.typescriptlang.org'
             },
             {
                 position: [55.9, 16, -1],
@@ -132,8 +202,10 @@ export default {
                 size: 13,
                 image: 'tailwindLogo',
                 textureScaler: 1.3,
-                materialColor: 0xffffff,
-                exposure: 0.7
+                materialColor: 0x47a6ff,
+                exposure: 0.7,
+                name: 'Tailwind CSS',
+                url: 'https://tailwindcss.com'
             },
             {
                 position: [69.9, 16, -4],
@@ -141,8 +213,10 @@ export default {
                 size: 13,
                 image: 'eurovisionapiLogo',
                 textureScaler: 1.1,
-                materialColor: 0xffffff,
-                exposure: 0.7
+                materialColor: 0x5730e6,
+                exposure: 0.7,
+                name: 'Eurovision API',
+                url: 'https://eurovisionapi.runasp.net/'
             }
         ]
 
@@ -154,8 +228,10 @@ export default {
                 size: 13,
                 image: 'vueLogo',
                 textureScaler: 1.3,
-                materialColor: 0xffffff,
-                exposure: 0.7
+                materialColor: 0x58a35d,
+                exposure: 0.7,
+                name: 'Vue.js',
+                url: 'https://vuejs.org/guide/introduction.html'
             },
             {
                 position: [42, 16, -1],
@@ -164,7 +240,9 @@ export default {
                 image: 'jsLogo',
                 textureScaler: 1.3,
                 materialColor: 0xffaa16,
-                exposure: 0.9
+                exposure: 0.9,
+                name: 'JavaScript',
+                url: 'https://developer.mozilla.org/en-US/docs/Web/JavaScript'
             },
             {
                 position: [55.9, 16, -1],
@@ -172,8 +250,10 @@ export default {
                 size: 13,
                 image: 'tailwindLogo',
                 textureScaler: 1.3,
-                materialColor: 0xffffff,
-                exposure: 0.7
+                materialColor: 0x47a6ff,
+                exposure: 0.7,
+                name: 'Tailwind CSS',
+                url: 'https://tailwindcss.com'
             },
             {
                 position: [70, 16, -4],
@@ -182,7 +262,9 @@ export default {
                 image: 'threeLogo',
                 textureScaler: 1.3,
                 materialColor: 0x000000,
-                exposure: 1
+                exposure: 1,
+                name: 'Three.js',
+                url: 'https://threejs.org'
             }
         ]
 
@@ -213,9 +295,19 @@ export default {
             thirdCard,
             headerSection,
             headerHeight,
+            nameHeading,
+            mouseCircleRef,
             quickEscapeMiniCards,
             eurovisorMiniCards,
-            portfolioMiniCards
+            portfolioMiniCards,
+            showNameCircle,
+            nameCirclePosition,
+            nameCircleScale,
+            onNameMouseMove,
+            onNameMouseEnter,
+            onNameMouseLeave,
+            handleCircleClick,
+            isAnimating
         }
     }
 }
