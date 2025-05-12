@@ -110,6 +110,13 @@ export default {
     const isHoveringMiniCard = ref(false)
     const hasVisited = ref(false)
 
+    // For visibility optimization
+    const isInViewport = ref(false)
+    const renderFrequency = ref(1)
+    const frameCounter = ref(0)
+    const observer = ref(null)
+    const isInitialized = ref(false)
+
     // Mark site as visited
     const markSiteAsVisited = (url) => {
       if (!url) return
@@ -146,6 +153,7 @@ export default {
 
       return `Go to ${props.title}`;
     });
+
     let scene, camera, renderer, cube, animationId
     let mouseOffsetX = 0, mouseOffsetY = 0
     let lastMouseX = null, lastMouseY = null
@@ -164,6 +172,31 @@ export default {
     const resolvedImage = (!props.image.includes('/') && !props.image.endsWith('.jpg'))
       ? require(`@/assets/images/${props.image}.jpg`)
       : props.image
+
+    // Setup the Intersection Observer
+    const setupIntersectionObserver = () => {
+      observer.value = new IntersectionObserver(
+        (entries) => {
+          const isVisible = entries[0].isIntersecting;
+          isInViewport.value = isVisible;
+          renderFrequency.value = isVisible ? 1 : 5;
+
+          if (isVisible && !isInitialized.value) {
+            initThree();
+            isInitialized.value = true;
+          }
+        },
+        {
+          root: null,
+          rootMargin: '200px',
+          threshold: 0.01
+        }
+      );
+
+      if (cardContainer.value) {
+        observer.value.observe(cardContainer.value);
+      }
+    };
 
     // Create mini card textures and materials
     const createMiniCardTextureMaterial = async (imagePath, textureScaleValue, colorValue, toonTexture, exposure = 0.5) => {
@@ -273,6 +306,8 @@ export default {
     }
 
     const initThree = async () => {
+      if (isInitialized.value) return;
+
       scene = new THREE.Scene()
 
       const width = canvas.value.clientWidth
@@ -381,6 +416,12 @@ export default {
     const animate = () => {
       animationId = requestAnimationFrame(animate)
 
+      // Only update and render based on frequency
+      frameCounter.value = (frameCounter.value + 1) % renderFrequency.value
+      if (frameCounter.value !== 0 && !isInViewport.value) {
+        return
+      }
+
       if (cube) {
         // Compute target position using only mouse effects
         const offsetX = mouseOffsetX * offsetFactor
@@ -454,6 +495,8 @@ export default {
     }
 
     const onCardMouseMove = (event) => {
+      if (!isInViewport.value) return;
+
       // Update circle position relative to the card container
       const rect = cardContainer.value.getBoundingClientRect()
       circlePosition.value = {
@@ -589,23 +632,20 @@ export default {
 
     onMounted(() => {
       setTimeout(() => {
-        initThree()
+        setupIntersectionObserver();
 
-        // Only set up the ResizeObserver after Three.js is initialized
-        resizeObserver = new ResizeObserver(() => {
-          onWindowResize()
-        })
-
-        if (canvas.value && canvas.value.parentNode) {
-          resizeObserver.observe(canvas.value.parentNode)
+        // Only initialize Three.js if in viewport
+        if (isInViewport.value) {
+          initThree();
+          isInitialized.value = true;
         }
+
+        window.addEventListener('resize', onWindowResize)
+        window.addEventListener('mousemove', onGlobalMouseMove)
+        window.addEventListener('scroll', onWindowScroll)
 
         checkIfVisited()
       }, 50)
-
-      window.addEventListener('resize', onWindowResize)
-      window.addEventListener('mousemove', onGlobalMouseMove)
-      window.addEventListener('scroll', onWindowScroll)
     })
 
     onBeforeUnmount(() => {
@@ -613,6 +653,10 @@ export default {
       window.removeEventListener('resize', onWindowResize)
       window.removeEventListener('mousemove', onGlobalMouseMove)
       window.removeEventListener('scroll', onWindowScroll)
+
+      if (observer.value) {
+        observer.value.disconnect();
+      }
 
       if (resizeObserver) {
         resizeObserver.disconnect()

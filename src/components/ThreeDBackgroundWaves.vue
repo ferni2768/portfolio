@@ -7,7 +7,7 @@
 </template>
 
 <script>
-import { ref, onMounted, onBeforeUnmount, computed } from 'vue'
+import { ref, onMounted, onBeforeUnmount, computed, watch } from 'vue'
 import * as THREE from 'three'
 import { createNoise4D } from 'simplex-noise'
 import TOON_TONE from '@/assets/images/textures/threeTone.jpg'
@@ -35,9 +35,24 @@ export default {
         let animationFrameId = null
         const noise4D = createNoise4D()
 
+        // For visibility optimization
+        const isVisible = ref(true)
+        const renderFrequency = ref(1)
+        const frameCounter = ref(0)
+
         const dynamicOpacity = computed(() => {
             return Math.max(0, 0.5 - (-props.translateY / 600))
         })
+
+        const isInView = computed(() => {
+            return props.translateY > -window.innerHeight * 1.5
+        })
+
+        // Watch for visibility changes and adjust rendering frequency
+        watch(isInView, (newIsInView) => {
+            isVisible.value = newIsInView
+            renderFrequency.value = newIsInView ? 1 : 3
+        }, { immediate: false })
 
         // Constants for wave generation
         const WIDTH_SEGMENTS = 10
@@ -200,9 +215,14 @@ export default {
             animationFrameId = requestAnimationFrame(renderLoop);
 
             if (sceneObjects.plane?.geometry) {
-                const timeFactor = performance.now() * 0.00003;
-                updateScene(timeFactor);
-                sceneObjects.renderer.render(sceneObjects.scene, sceneObjects.camera);
+                frameCounter.value = (frameCounter.value + 1) % renderFrequency.value;
+
+                // Only render if it's the right frame or if the component is visible
+                if (frameCounter.value === 0 || isVisible.value) {
+                    const timeFactor = performance.now() * 0.00003;
+                    updateScene(timeFactor);
+                    sceneObjects.renderer.render(sceneObjects.scene, sceneObjects.camera);
+                }
             }
         }
 
