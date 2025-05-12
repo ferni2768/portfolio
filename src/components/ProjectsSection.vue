@@ -55,7 +55,7 @@
                 :miniCards="quickEscapeMiniCards" :exposure="0.5" url="https://quickescape.netlify.app/" />
             <ThreeDCard title="Eurovisor" image="eurovisor_logo" tagline="Explore Eurovision Song Contest performances"
                 :miniCards="eurovisorMiniCards" :exposure="0.5" url="https://eurovisor.netlify.app/" />
-            <ThreeDCard ref="thirdCard" title="Portfolio ✓" image="eurovisor_logo"
+            <ThreeDCard ref="thirdCard" title="Portfolio ✓" image="portfolio_logo" :url="null"
                 tagline="It's this website! Scroll down to find out more" :miniCards="portfolioMiniCards"
                 :exposure="0.5" :isPortfolio="true" />
         </div>
