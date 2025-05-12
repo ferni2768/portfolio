@@ -2,7 +2,8 @@
   <div :style="{ opacity: loaded ? 1 : 0, transition: 'opacity 0.3s ease-in' }"
     class="w-full flex flex-col items-center">
     <div class="w-full h-64 relative" ref="cardContainer" @mousemove="onCardMouseMove" @mouseout="onCardMouseOut"
-      @click="handleCardClick" :style="{ cursor: getCursorStyle() }">
+      @touchstart="onTouchStart" @touchend="onCardMouseOut" @click="handleCardClick"
+      :style="{ cursor: getCursorStyle() }">
       <div class="w-full h-full">
         <canvas ref="canvas" class="w-full h-full"></canvas>
       </div>
@@ -109,6 +110,25 @@ export default {
     const circleFontSize = ref(MAIN_CARD_FONT_SIZE)
     const isHoveringMiniCard = ref(false)
     const hasVisited = ref(false)
+
+    // Touch interaction timer
+    const touchTimer = ref(null)
+    const isMobileInteraction = ref(false)
+    const touchTimeoutDuration = 1000
+    const isUsingTouch = ref(false)
+
+    // Add smoothing for touch reset animation
+    const isResettingTouch = ref(false)
+    const touchResetStartTime = ref(0)
+    const touchResetDuration = 500
+    const isTouchActive = ref(false)
+
+    // Add flags for touch tap handling
+    const isTouchTap = ref(false)
+    const touchTapDelay = 250
+    const touchTapTimer = ref(null)
+    const touchStartTime = ref(0)
+    const TOUCH_TAP_THRESHOLD = 300
 
     // For visibility optimization
     const isInViewport = ref(false)
@@ -423,6 +443,22 @@ export default {
       }
 
       if (cube) {
+        // Handle smooth reset animation if needed
+        if (isResettingTouch.value) {
+          const elapsedTime = Date.now() - touchResetStartTime.value
+          const progress = Math.min(elapsedTime / touchResetDuration, 1)
+          const easedProgress = 1 - Math.pow(1 - progress, 3)
+
+          mouseOffsetX *= (1 - easedProgress * 0.1)
+          mouseOffsetY *= (1 - easedProgress * 0.1)
+
+          if (progress >= 1) {
+            mouseOffsetX = 0
+            mouseOffsetY = 0
+            isResettingTouch.value = false
+          }
+        }
+
         // Compute target position using only mouse effects
         const offsetX = mouseOffsetX * offsetFactor
         const offsetY = -mouseOffsetY * offsetFactor
@@ -468,6 +504,8 @@ export default {
 
     // Calculate the rotation based on mouse position remains unchanged
     const onGlobalMouseMove = (event) => {
+      if (isUsingTouch.value) return
+
       lastMouseX = event.clientX
       lastMouseY = event.clientY
       if (!canvas.value || !canvas.value.parentNode) return
@@ -481,6 +519,8 @@ export default {
     }
 
     const onWindowScroll = () => {
+      if (isUsingTouch.value) return
+
       // On scroll, update mouse offset using stored coordinates if available
       if (lastMouseX !== null && lastMouseY !== null) {
         onGlobalMouseMove({ clientX: lastMouseX, clientY: lastMouseY })
@@ -603,7 +643,47 @@ export default {
     const handleCardClick = () => {
       const urlToOpen = activeUrl;
 
-      if (showCircle.value && urlToOpen && !isAnimating.value) {
+      if (!showCircle.value || !urlToOpen) return;
+
+      // If it's a touch event
+      if (isUsingTouch.value) {
+        if (!isTouchTap.value) {
+          isTouchTap.value = true;
+          showCircle.value = true;
+
+          // Clear any existing timer
+          if (touchTapTimer.value) {
+            clearTimeout(touchTapTimer.value);
+          }
+
+          // Hold the circle still for the delay period
+          touchTapTimer.value = setTimeout(() => {
+            isAnimating.value = true;
+            circleScale.value = 1.2;
+
+            setTimeout(() => {
+              circleScale.value = 0;
+
+              setTimeout(() => {
+                window.open(urlToOpen, '_blank');
+
+                if (urlToOpen === props.url) {
+                  setTimeout(() => {
+                    markSiteAsVisited(urlToOpen);
+                  }, 100);
+                }
+
+                isAnimating.value = false;
+                circleScale.value = 1;
+                isTouchTap.value = false;
+                showCircle.value = false;
+              }, 300);
+            }, 150);
+          }, touchTapDelay);
+        }
+      }
+      // If it's a mouse click
+      else if (!isAnimating.value) {
         isAnimating.value = true;
         circleScale.value = 1.2;
 
@@ -626,8 +706,153 @@ export default {
       }
     }
 
-    const onCardMouseOut = () => {
+    // Handle global touch start event
+    const onGlobalTouchStart = (event) => {
+      if (!isInViewport.value || !cardContainer.value) return;
+
+      const touch = event.touches[0];
+      const rect = cardContainer.value.getBoundingClientRect();
+
+      touchStartTime.value = Date.now();
+
+      // Check if touch is within or near the card's container
+      if (isTouchNearElement(touch, rect, 50)) {
+        isTouchActive.value = true;
+        handleTouchInteraction(touch, rect);
+      }
+    }
+
+    // Handle global touch move event
+    const onGlobalTouchMove = (event) => {
+      if (!isTouchActive.value || !isInViewport.value || !cardContainer.value) return;
+
+      const touch = event.touches[0];
+      const rect = cardContainer.value.getBoundingClientRect();
+      handleTouchInteraction(touch, rect);
+
+      // If we're dragging, cancel any tap processing
+      if (isTouchTap.value) {
+        isTouchTap.value = false;
+        if (touchTapTimer.value) {
+          clearTimeout(touchTapTimer.value);
+          touchTapTimer.value = null;
+        }
+      }
+    }
+
+    // Handle global touch end event
+    const onGlobalTouchEnd = () => {
+      const touchDuration = Date.now() - touchStartTime.value;
+
+      if (isTouchActive.value) {
+        if (touchDuration < TOUCH_TAP_THRESHOLD) {
+          // This was a tap - process it
+          if (showCircle.value) {
+            handleCardClick();
+          }
+        }
+
+        isTouchActive.value = false;
+        startTouchReset();
+      }
+    }
+
+    // Check if touch is within or near an element
+    const isTouchNearElement = (touch, rect, margin = 0) => {
+      return touch.clientX >= (rect.left - margin) &&
+        touch.clientX <= (rect.right + margin) &&
+        touch.clientY >= (rect.top - margin) &&
+        touch.clientY <= (rect.bottom + margin);
+    }
+
+    // Common touch interaction handling
+    const handleTouchInteraction = (touch, rect) => {
+      isResettingTouch.value = false;
+      isUsingTouch.value = true;
+      isMobileInteraction.value = true;
+
+      if (touchTimer.value) {
+        clearTimeout(touchTimer.value);
+      }
+
+      // Simulate a mouse event at the touch position
+      const simulatedEvent = {
+        clientX: touch.clientX,
+        clientY: touch.clientY
+      };
+
+      // Update global mouse position but don't let it be changed by scroll
+      lastMouseX = touch.clientX;
+      lastMouseY = touch.clientY;
+
+      const centerX = rect.left + rect.width / 2;
+      const centerY = rect.top + rect.height / 2;
+      mouseOffsetX = (touch.clientX - centerX) / (rect.width / 2);
+      mouseOffsetY = (touch.clientY - centerY) / (rect.height / 2);
+
+      const previousShowCircle = showCircle.value;
       showCircle.value = false;
+
+      onCardMouseMove(simulatedEvent);
+
+      if (isTouchTap.value || isAnimating.value) {
+        showCircle.value = previousShowCircle;
+      } else {
+        showCircle.value = false;
+      }
+
+      touchTimer.value = setTimeout(() => {
+        startTouchReset();
+      }, touchTimeoutDuration);
+    }
+
+    // Simplify local touch handler to delegate to global handler
+    const onTouchStart = (event) => {
+      if (!isInViewport.value) return;
+      const touch = event.touches[0];
+      const rect = cardContainer.value.getBoundingClientRect();
+      isTouchActive.value = true;
+      handleTouchInteraction(touch, rect);
+    }
+
+    // Start the smooth reset process instead of immediately setting to zero
+    const startTouchReset = () => {
+      isResettingTouch.value = true;
+      touchResetStartTime.value = Date.now();
+
+      if (touchTimer.value) {
+        clearTimeout(touchTimer.value);
+        touchTimer.value = null;
+      }
+
+      setTimeout(() => {
+        if (isResettingTouch.value) {
+          isResettingTouch.value = false;
+          mouseOffsetX = 0;
+          mouseOffsetY = 0;
+          isMobileInteraction.value = false;
+
+          if (!isTouchTap.value && !isAnimating.value) {
+            isUsingTouch.value = false;
+          }
+        }
+
+        // Only hide circle if we're not in a tap animation
+        if (!isTouchTap.value && !isAnimating.value) {
+          showCircle.value = false;
+        }
+      }, touchResetDuration + 100);
+    }
+
+    // Update existing mouse out function to handle touch events
+    const onCardMouseOut = () => {
+      if (isUsingTouch.value && (isTouchTap.value || isAnimating.value)) {
+        return;
+      }
+
+      if (!isMobileInteraction.value) {
+        showCircle.value = false;
+      }
     }
 
     onMounted(() => {
@@ -643,6 +868,9 @@ export default {
         window.addEventListener('resize', onWindowResize)
         window.addEventListener('mousemove', onGlobalMouseMove)
         window.addEventListener('scroll', onWindowScroll)
+        window.addEventListener('touchstart', onGlobalTouchStart)
+        window.addEventListener('touchmove', onGlobalTouchMove)
+        window.addEventListener('touchend', onGlobalTouchEnd)
 
         checkIfVisited()
       }, 50)
@@ -653,6 +881,9 @@ export default {
       window.removeEventListener('resize', onWindowResize)
       window.removeEventListener('mousemove', onGlobalMouseMove)
       window.removeEventListener('scroll', onWindowScroll)
+      window.removeEventListener('touchstart', onGlobalTouchStart)
+      window.removeEventListener('touchmove', onGlobalTouchMove)
+      window.removeEventListener('touchend', onGlobalTouchEnd)
 
       if (observer.value) {
         observer.value.disconnect();
@@ -664,6 +895,14 @@ export default {
 
       if (renderer) {
         renderer.dispose()
+      }
+
+      if (touchTimer.value) {
+        clearTimeout(touchTimer.value);
+      }
+
+      if (touchTapTimer.value) {
+        clearTimeout(touchTapTimer.value);
       }
     })
 
@@ -677,6 +916,7 @@ export default {
       hoveredMiniCard,
       onCardMouseMove,
       onCardMouseOut,
+      onTouchStart,
       handleCardClick,
       circleText,
       isAnimating,

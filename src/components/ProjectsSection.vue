@@ -3,8 +3,9 @@
         <!-- Header Section -->
         <div ref="headerSection" class="mb-5 md:mb-16 relative">
             <h1 class="relative text-4xl font-bold text-center mb-3">
-                <div class="inline-block" ref="nameHeading" @mousemove="onNameMouseMove" @mouseenter="onNameMouseEnter"
-                    @mouseleave="onNameMouseLeave" @click="handleCircleClick"
+                <div class="inline-block select-none" ref="nameHeading" @mousemove="onNameMouseMove"
+                    @mouseenter="onNameMouseEnter" @mouseleave="onNameMouseLeave" @click="handleCircleClick"
+                    @touchstart="onNameTouchStart" @touchmove="onNameTouchMove" @touchend="onNameTouchEnd"
                     :style="{ cursor: showNameCircle ? 'pointer' : 'auto' }">Alejandro
                     Fernández Vázquez</div>
             </h1>
@@ -87,9 +88,18 @@ export default {
         const isAnimating = ref(false)
         const linkedInUrl = "https://www.linkedin.com/in/afernandez3/"
 
+        // Touch interaction flags and timers
+        const isUsingTouch = ref(false)
+        const isTouchTap = ref(false)
+        const touchTapDelay = 250
+        const touchTapTimer = ref(null)
+        const touchStartTime = ref(0)
+        const TOUCH_TAP_THRESHOLD = 300
+        const isTouchActive = ref(false)
+
         // Mouse handlers for name heading
         const onNameMouseMove = (event) => {
-            if (nameHeading.value) {
+            if (nameHeading.value && !isUsingTouch.value) {
                 const rect = headerSection.value.getBoundingClientRect()
                 nameCirclePosition.value = {
                     x: event.clientX - rect.left + 5,
@@ -99,16 +109,97 @@ export default {
         }
 
         const onNameMouseEnter = () => {
-            showNameCircle.value = true;
+            if (!isUsingTouch.value) {
+                showNameCircle.value = true;
+            }
         }
 
         const onNameMouseLeave = () => {
-            showNameCircle.value = false;
+            if (!isUsingTouch.value && !isTouchTap.value && !isAnimating.value) {
+                showNameCircle.value = false;
+            }
         }
 
-        // Handle click on the circle
+        // Touch handlers for name heading
+        const onNameTouchStart = (event) => {
+            isUsingTouch.value = true;
+            isTouchActive.value = true;
+            touchStartTime.value = Date.now();
+
+            const touch = event.touches[0];
+            const rect = headerSection.value.getBoundingClientRect();
+
+            nameCirclePosition.value = {
+                x: touch.clientX - rect.left + 5,
+                y: touch.clientY - rect.top
+            };
+        }
+
+        const onNameTouchMove = (event) => {
+            if (!isTouchActive.value) return;
+
+            const touch = event.touches[0];
+            const rect = headerSection.value.getBoundingClientRect();
+
+            nameCirclePosition.value = {
+                x: touch.clientX - rect.left + 5,
+                y: touch.clientY - rect.top
+            };
+
+            // If we're dragging, cancel any tap processing
+            if (isTouchTap.value) {
+                isTouchTap.value = false;
+                showNameCircle.value = false;
+                if (touchTapTimer.value) {
+                    clearTimeout(touchTapTimer.value);
+                    touchTapTimer.value = null;
+                }
+            }
+        }
+
+        const onNameTouchEnd = () => {
+            const touchDuration = Date.now() - touchStartTime.value;
+
+            if (isTouchActive.value && touchDuration < TOUCH_TAP_THRESHOLD) {
+                // This was a tap - show the circle immediately
+                isTouchTap.value = true;
+                showNameCircle.value = true;
+
+                if (touchTapTimer.value) {
+                    clearTimeout(touchTapTimer.value);
+                }
+
+                touchTapTimer.value = setTimeout(() => {
+                    isAnimating.value = true;
+                    nameCircleScale.value = 1.2;
+
+                    setTimeout(() => {
+                        nameCircleScale.value = 0;
+
+                        setTimeout(() => {
+                            window.open(linkedInUrl, '_blank');
+                            isAnimating.value = false;
+                            nameCircleScale.value = 1;
+                            isTouchTap.value = false;
+
+                            // Hide circle after animation
+                            showNameCircle.value = false;
+                            setTimeout(() => {
+                                isUsingTouch.value = false;
+                            }, 100);
+                        }, 300);
+                    }, 150);
+                }, touchTapDelay);
+            } else {
+                showNameCircle.value = false;
+            }
+
+            isTouchActive.value = false;
+        }
+
+        // Handle click on the circle - for mouse clicks only
         const handleCircleClick = () => {
-            if (showNameCircle.value && !isAnimating.value) {
+            if (!isUsingTouch.value && showNameCircle.value && !isAnimating.value) {
                 isAnimating.value = true;
                 nameCircleScale.value = 1.2;
 
@@ -289,6 +380,10 @@ export default {
                 resizeObserver.disconnect()
             }
             window.removeEventListener('resize', updateHeaderHeight)
+
+            if (touchTapTimer.value) {
+                clearTimeout(touchTapTimer.value);
+            }
         })
 
         return {
@@ -306,9 +401,21 @@ export default {
             onNameMouseMove,
             onNameMouseEnter,
             onNameMouseLeave,
+            onNameTouchStart,
+            onNameTouchMove,
+            onNameTouchEnd,
             handleCircleClick,
             isAnimating
         }
     }
 }
 </script>
+
+<style scoped>
+.select-none {
+    -webkit-user-select: none;
+    -moz-user-select: none;
+    -ms-user-select: none;
+    user-select: none;
+}
+</style>
