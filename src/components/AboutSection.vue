@@ -13,8 +13,8 @@
         class="image-container md:w-1/2 p-6 order-2 flex items-center justify-center h-64 overflow-hidden"
         :class="{ 'slide-from-right': image1Visible }" @mousemove="onImage1MouseMove" @mouseenter="onImage1MouseEnter"
         @mouseleave="onImage1MouseLeave" :style="{ cursor: showImage1Circle ? 'none' : 'auto' }">
-        <img src="@/assets/images/aboutMe/walking.jpg" alt="About Me" class="object-cover h-full w-full no-drag"
-          draggable="false" />
+        <img src="@/assets/images/aboutMe/me.webp" alt="About Me" class="object-cover h-full w-full no-drag"
+          draggable="false" loading="eager" />
         <MouseCircle v-if="showImage1Circle" :position="image1CirclePosition" color="#000000" textColor="#ffffff"
           text="A little bit about me..." :size="150" :fontSize="20" :scale="1" :animating="false" />
       </div>
@@ -25,15 +25,15 @@
       <div ref="imageGroup"
         class="image-container w-full md:w-1/2 order-2 md:order-1 relative h-[16rem] md:h-[17.5rem] overflow-hidden"
         :class="{ 'images-visible': imagesVisible }">
-        <img src="@/assets/images/aboutMe/portfolio_example.jpg" alt="Portfolio Example"
+        <img src="@/assets/images/aboutMe/portfolio_example.webp" alt="Portfolio Example"
           class="cascade-image absolute left-[5%] top-[5%] max-h-[65%] max-w-[80%] z-10 object-contain no-drag"
-          draggable="false" />
-        <img src="@/assets/images/aboutMe/eurovisor_example.jpg" alt="Eurovisor Example"
+          draggable="false" loading="eager" />
+        <img src="@/assets/images/aboutMe/eurovisor_example.webp" alt="Eurovisor Example"
           class="cascade-image absolute left-1/2 -translate-x-1/2 top-1/2 -translate-y-1/2 max-h-[65%] max-w-[80%] z-20 object-contain no-drag"
-          draggable="false" />
-        <img src="@/assets/images/aboutMe/quickescape_example.jpg" alt="QuickEscape Example"
+          draggable="false" loading="eager" />
+        <img src="@/assets/images/aboutMe/quickescape_example.webp" alt="QuickEscape Example"
           class="cascade-image absolute right-[8%] bottom-[5%] max-h-[65%] max-w-[80%] z-30 object-contain no-drag"
-          draggable="false" />
+          draggable="false" loading="eager" />
       </div>
       <div class="md:w-1/2 p-6 order-1 md:order-2">
         <h2 class="text-3xl font-semibold text-white mb-4">What Drives Me</h2>
@@ -57,8 +57,8 @@
         class="image-container md:w-1/2 p-6 order-2 flex items-center justify-center h-64 overflow-hidden"
         :class="{ 'slide-from-right': image3Visible }" @mousemove="onImage3MouseMove" @mouseenter="onImage3MouseEnter"
         @mouseleave="onImage3MouseLeave" :style="{ cursor: showImage3Circle ? 'none' : 'auto' }">
-        <img src="@/assets/images/aboutMe/walking.jpg" alt="Hobbies" class="object-cover h-full w-full no-drag"
-          draggable="false" />
+        <img src="@/assets/images/aboutMe/walking.webp" alt="Hobbies" class="object-cover h-full w-full no-drag"
+          draggable="false" loading="eager" />
         <MouseCircle v-if="showImage3Circle" :position="image3CirclePosition" color="#000000" textColor="#ffffff"
           text="When I'm not coding..." :size="150" :fontSize="20" :scale="1" :animating="false" />
       </div>
@@ -204,17 +204,24 @@ export default {
   -o-user-drag: none;
   user-select: none;
   -webkit-user-select: none;
+  contain: content;
 }
 
 /* Animation classes for single images */
 .slide-from-right {
   visibility: visible;
   animation: slideFromRight 1s cubic-bezier(0.2, 0.65, 0.4, 1) forwards;
+  will-change: transform, opacity;
+  backface-visibility: hidden;
+  transform: translateZ(0);
 }
 
 .slide-from-left {
   visibility: visible;
   animation: slideFromLeft 1s cubic-bezier(0.2, 0.65, 0.4, 1) forwards;
+  will-change: transform, opacity;
+  backface-visibility: hidden;
+  transform: translateZ(0);
 }
 
 /* Cascade image group styles */
@@ -228,6 +235,9 @@ export default {
   box-shadow: 0 4px 6px rgba(0, 0, 0, 0.15);
   transition: transform 0.3s ease, box-shadow 0.3s ease, z-index 0.1s;
   pointer-events: auto;
+  contain: content;
+  will-change: transform, opacity;
+  backface-visibility: hidden;
 }
 
 .cascade-image-container {
@@ -240,6 +250,7 @@ export default {
   justify-content: center;
   align-items: center;
   overflow: hidden;
+  will-change: transform, opacity;
 }
 
 /* Make cascade images visible when parent container is visible */
@@ -253,7 +264,7 @@ export default {
 
 /* Hover effects for cascade images */
 .images-visible .cascade-image:hover {
-  transform: scale(1.05);
+  transform: scale3d(1.05, 1.05, 1);
   box-shadow: 0 8px 16px rgba(0, 0, 0, 0.2);
   z-index: 40 !important;
 }
@@ -261,14 +272,17 @@ export default {
 /* Animation timing for cascade images */
 .images-visible .cascade-image:nth-child(1) {
   animation: slideFromLeft 0.75s cubic-bezier(0.2, 0.65, 0.4, 1) forwards;
+  will-change: transform, opacity;
 }
 
 .images-visible .cascade-image:nth-child(2) {
   animation: slideUp 0.75s cubic-bezier(0.2, 0.65, 0.4, 1) 0.1s forwards;
+  will-change: transform, opacity;
 }
 
 .images-visible .cascade-image:nth-child(3) {
   animation: slideFromRight 0.75s cubic-bezier(0.2, 0.65, 0.4, 1) 0.2s forwards;
+  will-change: transform, opacity;
 }
 
 /* Media queries */
@@ -281,36 +295,36 @@ export default {
 /* Animations */
 @keyframes slideFromRight {
   0% {
-    transform: translateX(20%);
+    transform: translate3d(20%, 0, 0);
     opacity: 0;
   }
 
   100% {
-    transform: translateX(0);
+    transform: translate3d(0, 0, 0);
     opacity: 1;
   }
 }
 
 @keyframes slideFromLeft {
   0% {
-    transform: translateX(-20%);
+    transform: translate3d(-20%, 0, 0);
     opacity: 0;
   }
 
   100% {
-    transform: translateX(0);
+    transform: translate3d(0, 0, 0);
     opacity: 1;
   }
 }
 
 @keyframes slideUp {
   0% {
-    transform: translate(-52%, -30%);
+    transform: translate3d(-52%, -30%, 0);
     opacity: 0;
   }
 
   100% {
-    transform: translate(-52%, -50%);
+    transform: translate3d(-52%, -50%, 0);
     opacity: 1;
   }
 }
