@@ -13,7 +13,7 @@
         class="image-container md:w-1/2 p-6 order-2 flex items-center justify-center h-64 overflow-hidden"
         :class="{ 'slide-from-right': image1Visible }" @mousemove="onImage1MouseMove" @mouseenter="onImage1MouseEnter"
         @mouseleave="onImage1MouseLeave" :style="{ cursor: showImage1Circle ? 'none' : 'auto' }">
-        <img src="@/assets/images/aboutMe/walking.webp" alt="About Me" class="object-cover h-full w-full no-drag"
+        <img src="@/assets/images/aboutMe/me.webp" alt="About Me" class="object-cover h-full w-full no-drag"
           draggable="false" loading="eager" />
         <MouseCircle v-if="showImage1Circle" :position="image1CirclePosition" color="#000000" textColor="#ffffff"
           text="A little bit about me..." :size="150" :fontSize="20" :scale="1" :animating="false" />
